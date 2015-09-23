@@ -1,0 +1,61 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1348\cocoasubrtf170
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww15700\viewh17200\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural
+
+\f0\b\fs30 \cf0 Control de consumo
+\b0\fs28 \
+Se basa en las lecturas aportadas por un dispositivo del que se obtienen kWh consumidos desde el origen (puesta en marcha del dispositivo).\
+El dispositivo de medici\'f3n de consumo ha de configurarse para que realice lecturas cada minuto, es decir se obtendr\'e1 el consumo desde origen cada minuto.\
+La informaci\'f3n se almacena en una tabla que se persiste en una variable local, mediante una escena que se dispara cuando cambia el valor de consumo acumulado en el dispositivo.\
+Los valores almacenados sirven para alimentar un dispositivo virtual que muestra los datos mediante un proceso \'91update\'92 e\
+inicia la tabla con un proceso \'91reset\'92. Este dispositivo actualiza y/o reiniciar los datos desde el bucle principal.\
+\
+
+\b Tabla consumo
+\b0 \
+
+\i consumo[\'91mmddhh\'92:\{valor=num, unidad=\'92string\'92\}] 
+\i0 \
+Tabla para almacenar consumos, se usa como indice  la hora, d\'eda y mes en formato \'92mmddhh\'92, de esta forma se podr\'e1 recuperar la informaci\'f3n bas\'e1ndose en una hora concreta de un d\'eda concreto del un mes o acumulados totales por d\'eda u hora . Como valor de la tabla se usa a su vez una tabla que est\'e1 compuesta por dos valores, \'91valor\'92 de tipo number y \'91unidad\'92 de tipo string. Por ejemplo, para almacenar el consumo de la s 12 horas del d\'eda 17 de septiembre.  consumo['121709'] = \{valor=0.1234, unidad=\'91kWh\'92\}.\
+\
+
+\b Proceso reset
+\b0 \
+\'91reset\'92 se encarga de crear o iniciar la tabla consumo[\'91mmddhh\'92:\{valor=num, unidad=\'92string\'92\}], al lanzar el proceso se crea una tabla y se almacena el valor de consumo acumulado desde origen obtenido desde el dispositivo f\'edsico. Esta anotaci\'f3n ha de considerarse como consumo inicial del ciclo \'91consumoInicial\'92.\
+Cada vez que se resetea el sistema, se inicia un ciclo de facturaci\'f3n nuevo.\
+\
+
+\b Escena controlConsumo
+\b0 \
+La escena se dispara con cada cambio en el valor del consumo acumulado desde origen, si el dispositivo f\'edsico ha sido configurado para actualizar este valor cada minuto, la escena cada minuto calcula la diferencia de consumo desde la lectura anterior (consumoAcumuladoActual - ( consumoInicial + consumoTotal ) ) y lo almacena el la tabla consumo dentro de la clave \'91mmddhh\'92 obteniendo mes d\'eda y hora del sistema (os.date()). Si la clave \'91mmddhh\'92 ya est\'e1 creada, significa que hay consumos anotados para esta hora-d\'eda-mes y lo acumula en la misma clave.\
+\
+
+\b Proceso update
+\b0 \
+Es el encargado de actualizar las etiquetas del dispositivo virtual y los datos de facturaci\'f3n.\
+Lee los datos necesarios de la tabla consumo para obtener el consumo en la hora, d\'eda o ciclo de facturaci\'f3n a actuales, obtiene el precio hora desde \'91pvpc.cnomys.es\'92 o desde la variable \'91preciokwhmercadolibre\'92\
+\
+
+\b Bucle principal
+\b0 \
+Actualiza los datos de la factura virtual cada minuto, invocando al proceso \'91update\'92 y inicia el ciclo de facturaci\'f3n cada d\'eda del mes indicado invocando el proceso \'91update\'92.\
+\
+
+\b Puesta en marcha
+\b0 \
+1.- Crear variable global para almacenar datos de consumo\
+2.- Configurar nombre de la VG en la escena \'91controlConsumo.lua\'92 y en los procesos \'91resetButton\'92, \'91updateButton\'92 y \'91mainLoop\'92\
+	globalVarName = \'91consumoEnergia\'92\
+3-. Configurar la propiedad para obtener consumo desde origen en la escena y en el proceso \'91resetButton\'92 \
+	propertyName = 'energy'\
+	--[[\
+	%% properties\
+	512 energy\
+	--]]\
+3.- Iniciar ciclo de facturaci\'f3n\
+	lanzar proceso pulsando \'91resetButton\'92\
+4.- Iniciar escena controlConsumo (activar escena).\
+\
+}
