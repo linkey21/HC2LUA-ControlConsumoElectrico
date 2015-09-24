@@ -61,7 +61,7 @@ function formatConsumo()
   return 0
 end
 
---[[------------------------------------------------------------------------------
+--[[----------------------------------------------------------------------------
 resetConsumo()
 	inicializa (vacia) la tabla de consumos
 --]]
@@ -73,7 +73,7 @@ function resetConsumo()
   return setConsumo(consumoActual)
 end
 
---[[------------------------------------------------------------------------------
+--[[----------------------------------------------------------------------------
 setConsumo(hora, dia, mes, valor)
 	almacena el consumo horario.
 	si se pasa 1 parametro lo almacena en la hora actual del sistema (valor)
@@ -108,17 +108,17 @@ function setConsumo(a, b, c, d)
   return 0
 end
 
---[[------- INICIA LA EJECUCION ------------------------------------------------]]
+--[[------- INICIA LA EJECUCION ----------------------------------------------]]
 -- resetear la tabla de consumos
 local status = resetConsumo()
 -- invocar al boton de actualizacion de datos
 fibaro:call(_selfId, "pressButton", "14")
---[[----- FIN DE LA EJECUCION --------------------------------------------------]]
+--[[----- FIN DE LA EJECUCION ------------------------------------------------]]
 
---[[----- INFORME DE RESULTADOS ------------------------------------------------]]
+--[[----- INFORME DE RESULTADOS ----------------------------------------------]]
 _log(INFO, release['name']..
 ' ver '..release['ver']..'.'..release['mayor']..'.'..release['minor'])
 
 _log(INFO, fibaro:getGlobalValue(globalVarName))
---[[----- FIN INFORME DE RESULTADOS --------------------------------------------]]
---[[----------------------------------------------------------------------------]]
+--[[----- FIN INFORME DE RESULTADOS ------------------------------------------]]
+--[[--------------------------------------------------------------------------]]
