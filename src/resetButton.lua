@@ -1,48 +1,46 @@
-
---[[Control de consumo
-	VD Consumo
-	boton reset resetButton.lua
+--[[ControlConsumoElect
+	Dispositivo virtual
+	resetButton.lua
 	por Antonio Maestre & Manuel Pascual
---------------------------------------------------------------------------------]]
-release = {name='controConsumo resetButton', ver=0, mayor=0, minor=2}
+------------------------------------------------------------------------------]]
 
---[[----- CONFIGURACION DE USUARIO ---------------------------------------------]]
+--[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
 globalVarName = 'consumoEnergia'	-- nombre de la variable global
 energyDev = 512				-- ID del dispositivo de energia
 propertyName = 'energy'		-- propiedad del dispositivo para recuperar la energia
 							-- acumulada en kWh
-OFF=1;INFO=2;DEBUG=3		-- esto es una referencia para el log, no cambiar
-nivelLog = DEBUG			-- nivel de log
---[[----- FIN CONFIGURACION DE USUARIO -----------------------------------------]]
+--[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
 
---[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI --------------------------------]]
+--[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
 
---[[----- CONFIGURACION AVANZADA -----------------------------------------------]]
+--[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
+local release = {name='ControlConsumoElect.resetButton', ver=0, mayor=0,
+ minor=2}
 --[[consumoTab
   tabla para almacenar consumos horarios, se usa el indice para almacenar
   la hora, dia y mes 'mmddhh' y una tabla con el valor y la unidad, ej.
   consumo de las 12 de la mañana del dia 17 de septiembre
   consumo['121709'] = {valor=0.1234, unidad=kWh'}
   --]]
-  -- obtener el ID de este dispositivo virtual
-  local _selfId = fibaro:getSelfId();
---[[----- FIN CONFIGURACION AVANZADA -------------------------------------------]]
+-- obtener el ID de este dispositivo virtual
+local _selfId = fibaro:getSelfId()
+OFF=1;INFO=2;DEBUG=3  -- referencia para el log
+nivelLog = DEBUG			-- nivel de log
+--[[----- FIN CONFIGURACION AVANZADA -----------------------------------------]]
 
 --[[
 _log(level, log)
 	funcion para operar el nivel de LOG
---------------------------------------------------------------------------------]]
+------------------------------------------------------------------------------]]
 function _log(level, log)
   if log == nil then log = 'nil' end
-  local LOG = {}
-  LOG[1]='OFF'; LOG[2]='INFO'; LOG[3]='DEBUG';
   if nivelLog >= level then
     fibaro:debug(log)
   end
   return
 end
 
---[[------------------------------------------------------------------------------
+--[[----------------------------------------------------------------------------
 formatConsumo()
 	inserta un valor 0 en todos los posibles valores de la tabla de consumos
 --]]
@@ -111,7 +109,7 @@ function setConsumo(a, b, c, d)
 end
 
 --[[------- INICIA LA EJECUCION ------------------------------------------------]]
--- resetear la tabla de consumos 
+-- resetear la tabla de consumos
 local status = resetConsumo()
 -- invocar al boton de actualizacion de datos
 fibaro:call(_selfId, "pressButton", "14")

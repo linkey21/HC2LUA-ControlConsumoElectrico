@@ -1,41 +1,41 @@
-
---[[Control de consumo
-	VD Consumo
-	boton actualizarFactura.lua
+--[[ControlConsumoElect
+	Dispositivo virtual
+	updateButton.lua
 	por Antonio Maestre & Manuel Pascual
---------------------------------------------------------------------------------]]
-release = {name='controlConsumo updateButton', ver=0, mayor=0, minor=2}
+------------------------------------------------------------------------------]]
 
---[[----- CONFIGURACION DE USUARIO ---------------------------------------------]]
-globalVarName = 'consumoEnergia'-- nombre de la variable global para almacenar consumo
-local preciokwhterminofijo=0.115188;
+--[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
+globalVarName = 'consumoEnergia'      -- nombre de la variable global para
+                                      -- almacenar consumo
+local preciokwhterminofijo=0.115188
 local pvpc=true
-local pvpcTipoTarifa = '20'				-- '20', '20H', '20HS'
+local pvpcTipoTarifa = '20'           -- '20', '20H', '20HS'
 local potenciacontratadakw=4.6;
 local preciokwhmercadolibre=0.12;
 local precioalquilerequipodia=0.027616;
 local porcentajeIVA=21;
 local porcentajeimpuestoelectricidad=5.11269632;
---[[----- FIN CONFIGURACION DE USUARIO -----------------------------------------]]
+--[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
 
---[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI --------------------------------]]
+--[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
 
---[[----- CONFIGURACION AVANZADA -----------------------------------------------]]
+--[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
 -- obtener el ID de este dispositivo virtual
-OFF=1;INFO=2;DEBUG=3		-- esto es una referencia para el log, no cambiar
-nivelLog = DEBUG			-- nivel de log
-local _selfId = fibaro:getSelfId();
---[[----- FIN CONFIGURACION AVANZADA -------------------------------------------]]
+OFF=1;INFO=2;DEBUG=3				-- esto es una referencia para el log, no
+									-- cambiar
+nivelLog = DEBUG					-- nivel de log
+local _selfId = fibaro:getSelfId()	-- ID de este dispositivo virtual
+local release = {name='ControlConsumoElect.updateButton', ver=0, mayor=0,
+ minor=2}
+--[[----- FIN CONFIGURACION AVANZADA -----------------------------------------]]
 
 
 --[[
 _log(level, log)
 	funcion para operar el nivel de LOG
---------------------------------------------------------------------------------]]
+------------------------------------------------------------------------------]]
 function _log(level, log)
   if log == nil then log = 'nil' end
-  local LOG = {}
-  LOG[1]='OFF'; LOG[2]='INFO'; LOG[3]='DEBUG';
   if nivelLog >= level then
     fibaro:debug(log)
   end
@@ -57,7 +57,7 @@ getPreciohora(hora)
 --]]
 function getPreciohora(hora)
   local cnomys = Net.FHttp("pvpc.cnomys.es")
-  
+
   -- Discover available APIs and corresponding information
   payload = '/hora'
   response, status, errorCode = cnomys:GET(payload)
@@ -68,9 +68,10 @@ function getPreciohora(hora)
         if value.hora == hora then
           return 0, value.precio
         end
-      end 
+      end
     else
-      return 1, jsonTable['razon_error']
+      if jsonTable['razon_error'] then return 1, jsonTable['razon_error'] end
+      return 1, 'error desconocido'
     end
   else
     return 1, errorCode
@@ -78,7 +79,7 @@ function getPreciohora(hora)
   return 1,'La hora no corresponde con la actual'
 end
 
---[[-----------------------------------------------------------------------------
+--[[----------------------------------------------------------------------------
 normalizaPrecioHoraTab(precioHoraTab)
 	--
 --]]
@@ -92,7 +93,7 @@ function normalizaPrecioHoraTab(precioHoraTab)
   return preciosTab
 end
 
---[[-----------------------------------------------------------------------------
+--[[----------------------------------------------------------------------------
 getConsumo(a, b, c)
 	devuelve el consumo del mes, dia del mes u hora del dia del mes.
 	si se pasa 1 argumento,   se considera el (mes)
@@ -126,7 +127,7 @@ function getConsumo(a, b, c)
   return consumo, unidad
 end
 
---[[-----------------------------------------------------------------------------
+--[[----------------------------------------------------------------------------
 getConsumoOrigen()
 	devuelve el consumo inicial valor, unidad, fecha mmddhh
 --]]
@@ -139,27 +140,32 @@ function getConsumoOrigen()
   return u[1].value.valor, u[1].value.unidad, u[1].key
 end
 
---[[----- INICIAR ----------------------------------------------------------]]
--- obtener el precio kWh 
+--[[----- INICIAR ------------------------------------------------------------]]
+-- obtener el precio kWh
 local preciokwh = preciokwhmercadolibre --TODO se puede obtener de una web?.
 if pvpc then
   -- obtener el precio para esta hora
   status, preciokwh = getPreciohora(os.date("%H"))
-  -- si no se puede obtener informar del error y tomar precio 0
+  -- si no se puede obtener precio
   if status ~= 0 then
-    _log(INFO, 'Error: '..preciokwh)
-    preciokwh = preciokwhmercadolibre
+    -- informar del error
+    _log(INFO, 'Error al obtener precio: '..preciokwh)
+    --  y tomar precio anterior
+    preciokwh = tonumber(string.sub(fibaro:get(_selfId, 'ui.PrecioHora.value'),
+     1, 7))
   else
     preciokwh = tonumber(preciokwh)
   end
 end
-_log(DEBUG, 'Precio: '..preciokwh..' kWh')
-fibaro:log('Precio: '..preciokwh..' kWh')
-  
+-- refrescar etiqueta de precio hora
+fibaro:call(_selfId, "setProperty", "ui.PrecioHora.value",preciokwh..' €/kWh')
+_log(DEBUG, 'Precio: '..preciokwh..' €/kWh')
+fibaro:log('Precio: '..preciokwh..' €/kWh')
+
 -- obtener consumo origen y refrescar etiqueta de consumo origen
 fibaro:call(_selfId, "setProperty",
  "ui.ActualOrigen.value",tostring(getConsumoOrigen()) .. " kWh")
-   
+
 -- calcular consumo acumulado y potencia media de la ultima hora/fracion
 local hora = tonumber(os.date("%H"))
 local dia = tonumber(os.date("%d"))
@@ -183,11 +189,11 @@ _log(DEBUG, 'Consumo última hora: '..consumoActual)
 fibaro:call(_selfId, "setProperty", "ui.UltimaHora.value",
  redondea(consumoActual, 2).." kWh / "..
  redondea(consumoActual*preciokwh, 2).." €")
- 
+
  -- refrescar etiqueta potencia media
 fibaro:call(_selfId, "setProperty", "ui.PotenciaMedia.value",
  potenciaMedia..' W')
-  
+
 -- calcular consumo acumulado del dia
 consumoActual = getConsumo(tonumber(os.date("%d")), tonumber(os.date("%m")))
 _log(DEBUG, 'Consumo último día: '..consumoActual)
@@ -195,7 +201,7 @@ _log(DEBUG, 'Consumo último día: '..consumoActual)
 fibaro:call(_selfId, "setProperty", "ui.Ultimas24H.value",
  redondea(consumoActual, 2).. " kWh / "..
  redondea(consumoActual*preciokwh, 2).." €")
-  
+
 -- calcular consumo del ultimo ciclo
 consumoActual = getConsumo()
 _log(DEBUG, 'Consumo último ciclo: '..consumoActual)
@@ -203,46 +209,46 @@ _log(DEBUG, 'Consumo último ciclo: '..consumoActual)
 fibaro:call(_selfId, "setProperty", "ui.UltimoMes.value",
  redondea(consumoActual, 2).." kWh / "..
  redondea(consumoActual*preciokwh, 2).." €")
-  
---[[------- ACTUALIZAR FACTURA VIRTUAL -------------------------------------]]
--- calcular precio termino fijo 
+
+--[[------- ACTUALIZAR FACTURA VIRTUAL ---------------------------------------]]
+-- calcular precio termino fijo
 local euroterminofijopotenciames = potenciacontratadakw *
  preciokwhterminofijo * (tonumber(os.date("%d")))
 fibaro:call(_selfId, "setProperty", "ui.TerminoFijo.value",
  redondea(euroterminofijopotenciames, 2) .. " €")
-   
+
 -- calcula el precio del consumo mes
 local euroterminoconsumo = getConsumo(tonumber(os.date('%m'))) * preciokwh
 fibaro:call(_selfId, "setProperty", "ui.TerminoConsumo.value",
  redondea(euroterminoconsumo, 2) .. " €")
-    
+
 -- calcular precio impuesto electricidad
 local impuestoelectricidad = (euroterminofijopotenciames+euroterminoconsumo) *
  porcentajeimpuestoelectricidad/100;
 fibaro:call(_selfId, "setProperty", "ui.ImpuestoElectricidad.value",
  redondea(impuestoelectricidad, 2) .. " €")
- 
+
 -- calcular precio alquiler equipo
 local euroalquilerequipos = precioalquilerequipodia *
  (tonumber(os.date("%d")));
 fibaro:call(_selfId, "setProperty", "ui.AlquilerEquipos.value",
  redondea(euroalquilerequipos, 2) .. " €")
-    
+
 -- calcular el IVA
 local IVA = (euroterminofijopotenciames + euroterminoconsumo +
  impuestoelectricidad + euroalquilerequipos) * porcentajeIVA/100
 fibaro:call(_selfId, "setProperty", "ui.IVA.value", redondea(IVA,2) .. " €")
-    
+
 -- calcular TOTAL
 local Total = euroterminofijopotenciames+euroterminoconsumo +
  impuestoelectricidad + euroalquilerequipos+IVA
-fibaro:call(_selfId, "setProperty", "ui.Total.value", 
+fibaro:call(_selfId, "setProperty", "ui.Total.value",
 redondea(Total,2) .. " €")
---[[----- FIN DE LA EJECUCION --------------------------------------------------]]
+--[[----- FIN DE LA EJECUCION ------------------------------------------------]]
 
---[[----- INFORME DE RESULTADOS ------------------------------------------------]]
+--[[----- INFORME DE RESULTADOS ----------------------------------------------]]
 _log(INFO, release['name']..
 ' ver '..release['ver']..'.'..release['mayor']..'.'..release['minor'])
 
---[[----- FIN INFORME DE RESULTADOS --------------------------------------------]]
---[[----------------------------------------------------------------------------]]
+--[[----- FIN INFORME DE RESULTADOS ------------------------------------------]]
+--[[--------------------------------------------------------------------------]]

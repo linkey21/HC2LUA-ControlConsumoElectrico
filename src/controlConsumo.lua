@@ -4,34 +4,31 @@
 
 --]]
 
---[[Control de consumo 
-	escena controConsumo.lua
+--[[ControlConsumoElect
+	Escena
+	controlConsumo.lua
 	por Antonio Maestre & Manuel Pascual
---------------------------------------------------------------------------------]]
-release = {name='controlConsumo', ver=0, mayor=0, minor=2}
+------------------------------------------------------------------------------]]
 
-
---[[----- CONFIGURACION DE USUARIO ---------------------------------------------]]
+--[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
 globalVarName = 'consumoEnergia'-- nombre de la variable global para almacenar
 								-- consumo
-OFF=1;INFO=2;DEBUG=3		-- esto es una referencia para el log, no cambiar
-nivelLog = DEBUG			-- nivel de log
---[[----- FIN CONFIGURACION DE USUARIO -----------------------------------------]]
+--[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
 
---[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI --------------------------------]]
+--[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
 
---[[----- CONFIGURACION AVANZADA -----------------------------------------------]]
---[[----- FIN CONFIGURACION AVANZADA -------------------------------------------]]
-
+--[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
+OFF=1;INFO=2;DEBUG=3  -- esto es una referencia para el log, no cambiar
+nivelLog = DEBUG      -- nivel de log
+release = {name='controlConsumo', ver=0, mayor=0, minor=2}
+--[[----- FIN CONFIGURACION AVANZADA -----------------------------------------]]
 
 --[[
 _log(level, log)
 	funcion para operar el nivel de LOG
---------------------------------------------------------------------------------]]
+------------------------------------------------------------------------------]]
 function _log(level, log)
   if log == nil then log = 'nil' end
-  local LOG = {}
-  LOG[1]='OFF'; LOG[2]='INFO'; LOG[3]='DEBUG';
   if nivelLog >= level then
     fibaro:debug(log)
   end
@@ -47,7 +44,7 @@ function redondea(num, idp)
   return math.floor(num * mult + 0.5) / mult
 end
 
---[[-----------------------------------------------------------------------------
+--[[----------------------------------------------------------------------------
 getConsumo(a, b, c)
 	devuelve el consumo del mes, dia del mes u hora del dia del mes.
 	si no se pasan parametros se vevuel el total acumulado
@@ -82,7 +79,7 @@ function getConsumo(a, b, c)
   return consumo, unidad
 end
 
---[[-----------------------------------------------------------------------------
+--[[----------------------------------------------------------------------------
 getConsumoOrigen()
 	devuelve el consumo inicial valor, unidad, fecha mmddhh
 --]]
@@ -95,7 +92,7 @@ function getConsumoOrigen()
   return u[1].value.valor, u[1].value.unidad, u[1].key
 end
 
---[[-----------------------------------------------------------------------------
+--[[----------------------------------------------------------------------------
 setConsumo(hora, dia, mes, valor)
 	almacena el consumo horario.
 	si se pasa 1 parametro lo almacena en la hora actual del sistema (valor)
@@ -141,7 +138,7 @@ function setConsumo(a, b, c, d)
   return 0
 end
 
---[[----- COMIENZA LA EJECUCION ------------------------------------------------]]
+--[[----- COMIENZA LA EJECUCION ----------------------------------------------]]
 -- averiguar ID del dispositivo que lanza la escena
 local trigger = fibaro:getSourceTrigger()
 -- si se inicia por cambio de consumo
@@ -159,12 +156,12 @@ if trigger['type'] == 'property' then
   setConsumo(consumoAcumulado) -- la funcion se ancarga de acumular si procede
 end
 _log(DEBUG, fibaro:getGlobalValue(globalVarName))
---[[----- FIN DE LA EJECUCION --------------------------------------------------]]
+--[[----- FIN DE LA EJECUCION ------------------------------------------------]]
 
---[[----- INFORME DE RESULTADOS ------------------------------------------------]]
+--[[----- INFORME DE RESULTADOS ----------------------------------------------]]
 _log(INFO, release['name']..
 ' ver '..release['ver']..'.'..release['mayor']..'.'..release['minor'])
 
 _log(INFO, 'último consumo acumulado: '.. consumoAcumulado..' kWh')
---[[----- FIN INFORME DE RESULTADOS --------------------------------------------]]
---[[----------------------------------------------------------------------------]]
+--[[----- FIN INFORME DE RESULTADOS ------------------------------------------]]
+--[[--------------------------------------------------------------------------]]
