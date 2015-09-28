@@ -34,7 +34,7 @@ function _log(level, log)
 end
 
 --[[----------------------------------------------------------------------------
-getConsumoOrigen()
+getOrigen()
 	devuelve el consumo inicial valor, unidad, fecha mmddhh
 --]]
 function getOrigen()
