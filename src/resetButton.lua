@@ -5,27 +5,25 @@
 ------------------------------------------------------------------------------]]
 
 --[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
-globalVarName = 'consumoEnergia'	-- nombre de la variable global
-energyDev = 512				-- ID del dispositivo de energia
+energyDev = 512           -- ID del dispositivo de energia
 propertyName = 'energy'		-- propiedad del dispositivo para recuperar la energia
-							-- acumulada en kWh
 --[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
 
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
 
 --[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
 local release = {name='ControlConsumoElect.resetButton', ver=0, mayor=0,
- minor=2}
+ minor=3}
+local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
+globalVarName = 'consumoEnergia'    -- nombre de la variable global
+OFF=1;INFO=2;DEBUG=3                -- referencia para el log
+nivelLog = DEBUG                    -- nivel de log
 --[[consumoTab
   tabla para almacenar consumos horarios, se usa el indice para almacenar
   la hora, dia y mes 'mmddhh' y una tabla con el valor y la unidad, ej.
   consumo de las 12 de la mañana del dia 17 de septiembre
   consumo['121709'] = {valor=0.1234, unidad=kWh'}
   --]]
--- obtener el ID de este dispositivo virtual
-local _selfId = fibaro:getSelfId()
-OFF=1;INFO=2;DEBUG=3  -- referencia para el log
-nivelLog = DEBUG			-- nivel de log
 --[[----- FIN CONFIGURACION AVANZADA -----------------------------------------]]
 
 --[[

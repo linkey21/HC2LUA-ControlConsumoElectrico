@@ -5,31 +5,28 @@
 ------------------------------------------------------------------------------]]
 
 --[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
-globalVarName = 'energiaMes'      -- nombre de la variable global para
-                                      -- almacenar consumo
-local preciokwhterminofijo=0.115188
-local pvpc=true
-local pvpcTipoTarifa = '20'           -- '20', '20H', '20HS'
-local potenciacontratadakw = 4.6
-local preciokwhmercadolibre = 0.12
-local precioalquilerequipodia = 0.027616
-local porcentajeIVA = 21
-local porcentajeimpuestoelectricidad = 5.11269632
-local porcentajeAjusteRecomendacion = 1 -- %
-local IDIconoRecomendadoSI = 1057
-local IDIconoRecomendadoNO = 1058
+local potenciacontratadakw = 4.6                  --
+local preciokwhmercadolibre = 0.12                --
+local precioalquilerequipodia = 0.027616          --
+local porcentajeIVA = 21                          --
+local porcentajeimpuestoelectricidad = 5.11269632 --
+local preciokwhterminofijo = 0.115188             --
+local pvpc = true                                 -- si se usa factura PVPC
+local pvpcTipoTarifa = '20'                       -- '20', '20H', '20HS'
+local porcentajeAjusteRecomendacion = 2           -- % por encima precio medio
+local IDIconoRecomendadoSI = 1060                 -- icomo recomendar consumo
+local IDIconoRecomendadoNO = 1059                 -- icono NO recomendar consumo
 --[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
 
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
 
 --[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
--- obtener el ID de este dispositivo virtual
-OFF=1;INFO=2;DEBUG=3				-- esto es una referencia para el log, no
-									-- cambiar
-nivelLog = DEBUG					-- nivel de log
-local _selfId = fibaro:getSelfId()	-- ID de este dispositivo virtual
 local release = {name='ControlConsumoElect.updateButton', ver=0, mayor=0,
- minor=2}
+ minor=3}
+local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
+globalVarName = 'consumoEnergia'    -- nombre de la variable global
+OFF=1;INFO=2;DEBUG=3                -- referencia para el log
+nivelLog = DEBUG                    -- nivel de log
 --[[----- FIN CONFIGURACION AVANZADA -----------------------------------------]]
 
 --[[
@@ -183,7 +180,7 @@ end
 fibaro:call(_selfId, "setProperty", "ui.PrecioHora.value",preciokwh..' €/kWh')
 _log(DEBUG, 'Precio hora: '..preciokwh..' €/kWh')
 
--- refrescar recomendación consumo
+-- calcular recomendacion consumo
 local recomendacion = 'Aprovechar'
 local iconoRecomendado = IDIconoRecomendadoSI
 if (preciokwh > (precioMedioDia * (1 + porcentajeAjusteRecomendacion/100))) then

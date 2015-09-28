@@ -1,7 +1,6 @@
 --[[
 %% properties
 512 energy
-
 --]]
 
 --[[ControlConsumoElect
@@ -11,16 +10,16 @@
 ------------------------------------------------------------------------------]]
 
 --[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
-globalVarName = 'energiaMes'-- nombre de la variable global para almacenar
-								-- consumo
 --[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
 
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
 
 --[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
-OFF=1;INFO=2;DEBUG=3  -- esto es una referencia para el log, no cambiar
-nivelLog = DEBUG      -- nivel de log
-release = {name='controlConsumo', ver=0, mayor=0, minor=2}
+local release = {name='ControlConsumoElect.controlConsumo', ver=0, mayor=0,
+ minor=3}
+globalVarName = 'consumoEnergia'    -- nombre de la variable global
+OFF=1;INFO=2;DEBUG=3                -- referencia para el log
+nivelLog = DEBUG                    -- nivel de log
 --[[----- FIN CONFIGURACION AVANZADA -----------------------------------------]]
 
 --[[

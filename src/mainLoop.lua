@@ -5,20 +5,18 @@
 ------------------------------------------------------------------------------]]
 
 --[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
-globalVarName = 'consumoEnergia'-- nombre de la variable global para almacenar
-								-- consumo
 local diaCambioCiclo = '21'	-- dia del mes en que cambia el ciclo de facturacion
-OFF=1;INFO=2;DEBUG=3		-- esto es una referencia para el log, no cambiar
-nivelLog = DEBUG			-- nivel de log
+local tiempoRefresco = 60   -- tiempo
 --[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
 
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
 
 --[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
-local release = {name='ControlConsumoElect.mainLoop', ver=0, mayor=0,
- minor=2}
--- obtener el ID de este dispositivo virtual
-local _selfId = fibaro:getSelfId();
+local release = {name='ControlConsumoElect.mainLoop', ver=0, mayor=0, minor=3}
+local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
+globalVarName = 'consumoEnergia'    -- nombre de la variable global
+OFF=1;INFO=2;DEBUG=3                -- referencia para el log
+nivelLog = DEBUG                    -- nivel de log
 --[[----- FIN CONFIGURACION AVANZADA -----------------------------------------]]
 
 --[[
@@ -35,7 +33,7 @@ end
 
 --[[----------------------------------------------------------------------------
 getOrigen()
-	devuelve el consumo inicial valor, unidad, fecha mmddhh
+	devuelve fecha origen en formato mmddhh
 --]]
 function getOrigen()
   local consumoTab = json.decode(fibaro:getGlobalValue(globalVarName))
@@ -68,15 +66,23 @@ while true do
   local mesActual = tonumber(os.date("%m"))
   -- ajustar cambio de año
   if mesOrigen == 12 then mesOrigen = 0 end
-  if (diaCambioCiclo == os.date("%d")) and
-   (mesActual == mesOrigen + 1) then
+  if (diaCambioCiclo == os.date("%d")) and (mesActual == mesOrigen + 1) then
     -- invocar al boton de reseteo de datos
     fibaro:call(_selfId, "pressButton", "15")
     _log(DEBUG, 'reinicio de ciclo de facturación '..getOrigen())
   end
   --[[-FIN CICLO DE FACTUARCION ----------------------------------------------]]
 
-  fibaro:sleep(60*1000);
-  _log(DEBUG, "bucle");
+  -- esperar hasta que la tabla de consumos sufra cambios para sincronizar con
+  -- el dispositivo virtual con el fisico
+  local consumoStr = fibaro:getGlobalValue(globalVarName)
+  local newConsumoStr = consumoStr
+  _log(DEBUG, 'esperando...')
+  while consumoStr == newConsumoStr do
+    fibaro:sleep(1000)
+    newConsumoStr = fibaro:getGlobalValue(globalVarName)
+    -- durante la primera hora desde que se inicia el ciclo, la tabla no cambia
+  end
+  _log(DEBUG, 'actualizar')
 end
 --[[--------------------------------------------------------------------------]]
