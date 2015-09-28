@@ -5,16 +5,19 @@
 ------------------------------------------------------------------------------]]
 
 --[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
-globalVarName = 'consumoEnergia'      -- nombre de la variable global para
+globalVarName = 'energiaMes'      -- nombre de la variable global para
                                       -- almacenar consumo
 local preciokwhterminofijo=0.115188
 local pvpc=true
 local pvpcTipoTarifa = '20'           -- '20', '20H', '20HS'
-local potenciacontratadakw=4.6;
-local preciokwhmercadolibre=0.12;
-local precioalquilerequipodia=0.027616;
-local porcentajeIVA=21;
-local porcentajeimpuestoelectricidad=5.11269632;
+local potenciacontratadakw = 4.6
+local preciokwhmercadolibre = 0.12
+local precioalquilerequipodia = 0.027616
+local porcentajeIVA = 21
+local porcentajeimpuestoelectricidad = 5.11269632
+local porcentajeAjusteRecomendacion = 1 -- %
+local IDIconoRecomendadoSI = 1057
+local IDIconoRecomendadoNO = 1058
 --[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
 
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
@@ -28,7 +31,6 @@ local _selfId = fibaro:getSelfId()	-- ID de este dispositivo virtual
 local release = {name='ControlConsumoElect.updateButton', ver=0, mayor=0,
  minor=2}
 --[[----- FIN CONFIGURACION AVANZADA -----------------------------------------]]
-
 
 --[[
 _log(level, log)
@@ -44,7 +46,7 @@ end
 
 --[[----------------------------------------------------------------------------
 redondea(num, idp)
-	--
+  devuelve el numero (num) redondeado a (idp) decimales
 --]]
 function redondea(num, idp)
   local mult = 10^(idp or 0)
@@ -52,20 +54,26 @@ function redondea(num, idp)
 end
 
 --[[----------------------------------------------------------------------------
-getPreciohora(hora)
-	--
+getPVPC(tipo)
+	devuelve el valor del pecio valuntario para pequeño consumidor de la hora o
+	del dia.
+	tipo = 'dia'/'hora'
 --]]
-function getPreciohora(hora)
+function getPVPC(tipo)
+  -- solo se puede recibir como parametro 'hora' o 'dia'
+  if (tipo ~='dia' and tipo ~='hora') then
+    return 1, 'solo se admite dia/hora'
+  end
+  local payload = '/'..tipo
+  -- si el tipo es hora, se toma la hora actual si no el dia de hoy
+  if tipo == 'hora' then tipo = os.date('%H') else tipo = 'hoy' end
   local cnomys = Net.FHttp("pvpc.cnomys.es")
-
-  -- Discover available APIs and corresponding information
-  payload = '/hora'
   response, status, errorCode = cnomys:GET(payload)
   if tonumber(status) == 200 then
     local jsonTable = json.decode(response)
     if (jsonTable.estado == true) then
-      for key, value in pairs(normalizaPrecioHoraTab(jsonTable.datos)) do
-        if value.hora == hora then
+      for key, value in pairs(normalizaPVPCTab(jsonTable.datos)) do
+        if value.clave == tipo then
           return 0, value.precio
         end
       end
@@ -76,18 +84,20 @@ function getPreciohora(hora)
   else
     return 1, errorCode
   end
-  return 1,'La hora no corresponde con la actual'
+  return 1, 'dia/hora no corresponde con el actual'
 end
 
---[[----------------------------------------------------------------------------
-normalizaPrecioHoraTab(precioHoraTab)
-	--
+--[[-----------------------------------------------------------------------------
+normalizaPVPCTab(precioTab)
+  -- recive una tabla de precio de cada hora representados por el indice y
+  -- devuelve una tabla con el formato {clave, precio} con los precios del tipo
+  -- de tarifa declarada en la variable pvpcTipoTarifa
 --]]
-function normalizaPrecioHoraTab(precioHoraTab)
+function normalizaPVPCTab(precioTab)
   local preciosTab = {}
-  for key, value in pairs(precioHoraTab) do
+  for key, value in pairs(precioTab) do
     if value then
-      preciosTab[#preciosTab + 1] = {hora = key, precio = value[pvpcTipoTarifa]}
+      preciosTab[#preciosTab + 1] = {clave = key, precio = value[pvpcTipoTarifa]}
     end
   end
   return preciosTab
@@ -133,7 +143,7 @@ getConsumoOrigen()
 --]]
 function getConsumoOrigen()
   local consumoTab = json.decode(fibaro:getGlobalValue(globalVarName))
-  -- ordenar la tabla para compara tomar el primer valor
+  -- ordenar la tabla para comparar tomar el primer valor
   local u = {}
   for k, v in pairs(consumoTab) do table.insert(u, { key = k, value = v }) end
   table.sort(u, function (a1, a2) return a1.key < a2.key; end)
@@ -143,24 +153,49 @@ end
 --[[----- INICIAR ------------------------------------------------------------]]
 -- obtener el precio kWh
 local preciokwh = preciokwhmercadolibre --TODO se puede obtener de una web?.
+local precioMedioDia = 0
 if pvpc then
   -- obtener el precio para esta hora
-  status, preciokwh = getPreciohora(os.date("%H"))
+  status, preciokwh = getPVPC('hora')
   -- si no se puede obtener precio
   if status ~= 0 then
     -- informar del error
-    _log(INFO, 'Error al obtener precio: '..preciokwh)
+    _log(INFO, 'Error al obtener precio hora: '..preciokwh)
     --  y tomar precio anterior
     preciokwh = tonumber(string.sub(fibaro:get(_selfId, 'ui.PrecioHora.value'),
      1, 7))
   else
     preciokwh = tonumber(preciokwh)
   end
+  -- obtener precio medio del día
+  status, precioMedioDia = getPVPC('dia')
+  -- si no se puede obtener precio medio dia
+  if status ~= 0 then
+    -- informar del error
+    _log(INFO, 'Error al obtener precio medio día: '..precioMedioDia)
+    --  y tomar precio hora no recomendable
+    precioMedioDia = preciokwh * (1 + porcentajeAjusteRecomendacion/100)
+  else
+    precioMedioDia = tonumber(precioMedioDia)
+  end
 end
 -- refrescar etiqueta de precio hora
 fibaro:call(_selfId, "setProperty", "ui.PrecioHora.value",preciokwh..' €/kWh')
-_log(DEBUG, 'Precio: '..preciokwh..' €/kWh')
-fibaro:log('Precio: '..preciokwh..' €/kWh')
+_log(DEBUG, 'Precio hora: '..preciokwh..' €/kWh')
+
+-- refrescar recomendación consumo
+local recomendacion = 'Aprovechar'
+local iconoRecomendado = IDIconoRecomendadoSI
+if (preciokwh > (precioMedioDia * (1 + porcentajeAjusteRecomendacion/100))) then
+	recomendacion = 'Esperar'
+  iconoRecomendado = IDIconoRecomendadoNO
+end
+_log(DEBUG, 'Precio medio día: '..precioMedioDia ..' €/kwh')
+-- refrescar el log
+fibaro:log('Precio medio:'..precioMedioDia..'€/kWh  Actual:'..
+preciokwh..'€/kWh '..recomendacion)
+-- refrescar icono recomendacion
+fibaro:call(_selfId, 'setProperty', "currentIcon", iconoRecomendado)
 
 -- obtener consumo origen y refrescar etiqueta de consumo origen
 fibaro:call(_selfId, "setProperty",

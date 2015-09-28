@@ -11,7 +11,7 @@
 ------------------------------------------------------------------------------]]
 
 --[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
-globalVarName = 'consumoEnergia'-- nombre de la variable global para almacenar
+globalVarName = 'energiaMes'-- nombre de la variable global para almacenar
 								-- consumo
 --[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
 
