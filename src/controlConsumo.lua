@@ -1,6 +1,6 @@
 --[[
 %% properties
-512 energy
+547 value
 --]]
 
 --[[ControlConsumoElect

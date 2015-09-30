@@ -5,8 +5,8 @@
 ------------------------------------------------------------------------------]]
 
 --[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
-energyDev = 512           -- ID del dispositivo de energia
-propertyName = 'energy'		-- propiedad del dispositivo para recuperar la energia
+energyDev = 547           -- ID del dispositivo de energia
+propertyName = 'value'		-- propiedad del dispositivo para recuperar la energia
 --[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
 
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
@@ -106,9 +106,43 @@ function setConsumo(a, b, c, d)
   return 0
 end
 
+--[[----------------------------------------------------------------------------
+getOrigen()
+	devuelve fecha origen en formato mmddhh
+--]]
+function getOrigen()
+  local consumoTab = json.decode(fibaro:getGlobalValue(globalVarName))
+  -- ordenar la tabla para compara tomar el primer valor
+  local u = {}
+  for k, v in pairs(consumoTab) do table.insert(u, { key = k, value = v }) end
+  table.sort(u, function (a1, a2) return a1.key < a2.key; end)
+  return u[1].key
+end
+
 --[[------- INICIA LA EJECUCION ----------------------------------------------]]
 -- resetear la tabla de consumos
 local status = resetConsumo()
+
+-- proponer como dia de inicio de ciclo el mismo dias del mes siguiente a la
+-- fecha origen de ciclo actual
+-- obtener fecha origen
+local clave; clave = getOrigen()
+-- otener dia, mes y año de la fecha origen
+local dia = tonumber(string.sub(clave, 3, 4))
+local mes = tonumber(string.sub(clave, 1, 2))
+local anno = tonumber(os.date('%Y'))
+-- averiguar los dias que tiene el mes
+local diasDelMes = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+local dias = diasDelMes[tonumber(mes)]
+-- averiguar los segundos que tiene el mes
+local segs = 86400 * dias
+-- saltar un mes
+local fecha = os.date('%d/%m/%y', os.time({month = mes, day = dia,
+ year = anno}) + segs)
+ -- refrescar la etiqueta diaInicioCiclo
+fibaro:call(_selfId, 'setProperty', 'ui.diaInicioCiclo.value', fecha)
+_log(DEBUG, fecha)
+
 -- invocar al boton de actualizacion de datos
 fibaro:call(_selfId, "pressButton", "14")
 --[[----- FIN DE LA EJECUCION ------------------------------------------------]]

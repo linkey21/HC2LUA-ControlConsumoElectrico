@@ -5,15 +5,15 @@
 ------------------------------------------------------------------------------]]
 
 --[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
-local potenciacontratadakw = 4.6                  --
+local potenciacontratadakw = 4.4                  --
 local preciokwhmercadolibre = 0.12                --
 local precioalquilerequipodia = 0.027616          --
 local porcentajeIVA = 21                          --
 local porcentajeimpuestoelectricidad = 5.11269632 --
-local preciokwhterminofijo = 0.115188             --
+local preciokwhterminofijo = 0.115187             --
 local pvpc = true                                 -- si se usa factura PVPC
 local pvpcTipoTarifa = '20'                       -- '20', '20H', '20HS'
-local porcentajeAjusteRecomendacion = 2           -- % por encima precio medio
+local porcentajeAjusteRecomendacion = 3           -- % por encima precio medio
 local IDIconoRecomendadoSI = 1060                 -- icomo recomendar consumo
 local IDIconoRecomendadoNO = 1059                 -- icono NO recomendar consumo
 --[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
@@ -194,9 +194,12 @@ preciokwh..'€/kWh '..recomendacion)
 -- refrescar icono recomendacion
 fibaro:call(_selfId, 'setProperty', "currentIcon", iconoRecomendado)
 
--- obtener consumo origen y refrescar etiqueta de consumo origen
+-- obtener consumo origen
+local consumoOrigen, unidad, clave
+consumoOrigen, unidad, clave = getConsumoOrigen()
+-- refrescar etiqueta de consumo origen
 fibaro:call(_selfId, "setProperty",
- "ui.ActualOrigen.value",tostring(getConsumoOrigen()) .. " kWh")
+ "ui.ActualOrigen.value",tostring(consumoOrigen).." "..unidad)
 
 -- calcular consumo acumulado y potencia media de la ultima hora/fracion
 local hora = tonumber(os.date("%H"))
@@ -246,11 +249,13 @@ fibaro:call(_selfId, "setProperty", "ui.UltimoMes.value",
 -- calcular precio termino fijo
 local euroterminofijopotenciames = potenciacontratadakw *
  preciokwhterminofijo * (tonumber(os.date("%d")))
+ -- TODO calcular por los dias que van del ciclo
 fibaro:call(_selfId, "setProperty", "ui.TerminoFijo.value",
  redondea(euroterminofijopotenciames, 2) .. " €")
 
 -- calcula el precio del consumo mes
 local euroterminoconsumo = getConsumo(tonumber(os.date('%m'))) * preciokwh
+-- TODO calcular precio consumo de lo que va de ciclo
 fibaro:call(_selfId, "setProperty", "ui.TerminoConsumo.value",
  redondea(euroterminoconsumo, 2) .. " €")
 
@@ -262,7 +267,7 @@ fibaro:call(_selfId, "setProperty", "ui.ImpuestoElectricidad.value",
 
 -- calcular precio alquiler equipo
 local euroalquilerequipos = precioalquilerequipodia *
- (tonumber(os.date("%d")));
+ (tonumber(os.date("%d"))); -- TODO calcular por los dias que van del ciclo
 fibaro:call(_selfId, "setProperty", "ui.AlquilerEquipos.value",
  redondea(euroalquilerequipos, 2) .. " €")
 

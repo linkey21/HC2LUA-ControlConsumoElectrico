@@ -5,8 +5,7 @@
 ------------------------------------------------------------------------------]]
 
 --[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
-local diaCambioCiclo = '21'	-- dia del mes en que cambia el ciclo de facturacion
-local tiempoRefresco = 60   -- tiempo
+local diaCambioCiclo = '1'	-- dia del mes en que cambia el ciclo de facturacion
 --[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
 
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
@@ -14,6 +13,8 @@ local tiempoRefresco = 60   -- tiempo
 --[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
 local release = {name='ControlConsumoElect.mainLoop', ver=0, mayor=0, minor=3}
 local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
+local diaCambioCiclo = fibaro:get(_selfId, 'ui.diaInicioCiclo.value')
+diaCambioCiclo = tonumber(string.sub(diaCambioCiclo, 1, 2))
 globalVarName = 'consumoEnergia'    -- nombre de la variable global
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log
 nivelLog = DEBUG                    -- nivel de log
@@ -53,7 +54,7 @@ _log(DEBUG, "Iniciando...")
 while true do
   --[[-------- ACTUALIZAR CONSUMO Y FACTURA VIRTUAL --------------------------]]
   -- invocar al boton de actualizacion de datos
-  fibaro:call(_selfId, "pressButton", "14")
+  fibaro:call(_selfId, "pressButton", "19")
 
   --[[-CADA HORA --------------- ---------------------------------------------]]
     --if (tonumber(os.date("%M"))==0 and tonumber(os.date("%S"))==1) then
@@ -66,9 +67,10 @@ while true do
   local mesActual = tonumber(os.date("%m"))
   -- ajustar cambio de año
   if mesOrigen == 12 then mesOrigen = 0 end
-  if (diaCambioCiclo == os.date("%d")) and (mesActual == mesOrigen + 1) then
+  if (diaCambioCiclo == tonumber(os.date("%d"))) and
+   (mesActual == mesOrigen + 1) then
     -- invocar al boton de reseteo de datos
-    fibaro:call(_selfId, "pressButton", "15")
+    fibaro:call(_selfId, "pressButton", "18")
     _log(DEBUG, 'reinicio de ciclo de facturación '..getOrigen())
   end
   --[[-FIN CICLO DE FACTUARCION ----------------------------------------------]]
