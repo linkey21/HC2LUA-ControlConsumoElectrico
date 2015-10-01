@@ -5,13 +5,13 @@
 ------------------------------------------------------------------------------]]
 
 --[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
-local potenciacontratadakw = 4.4                  --
-local preciokwhmercadolibre = 0.12                --
-local precioalquilerequipodia = 0.027616          --
-local porcentajeIVA = 21                          --
-local porcentajeimpuestoelectricidad = 5.11269632 --
+local potenciacontratadakw = 4.4                  -- potencia contratada
+local preciokwhmercadolibre = 0.141422            --
+local precioalquilerequipodia = 0.028644          -- alquiler de contador
+local porcentajeIVA = 21                          -- % IVA
+local porcentajeimpuestoelectricidad = 5.1127     -- % impuesto de electricidad
 local preciokwhterminofijo = 0.115187             --
-local pvpc = true                                 -- si se usa factura PVPC
+local pvpc = true                                 -- si se usa tarifa PVPC
 local pvpcTipoTarifa = '20'                       -- '20', '20H', '20HS'
 local porcentajeAjusteRecomendacion = 3           -- % por encima precio medio
 local IDIconoRecomendadoSI = 1060                 -- icomo recomendar consumo
@@ -24,7 +24,8 @@ local IDIconoRecomendadoNO = 1059                 -- icono NO recomendar consumo
 local release = {name='ControlConsumoElect.updateButton', ver=0, mayor=0,
  minor=4}
 local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
-globalVarName = 'consumoEnergia'    -- nombre de la variable global
+-- definir nombre de la variable usando el nombre del dispositivo
+globalVarName = fibaro:getName(_selfId)
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log
 nivelLog = DEBUG                    -- nivel de log
 --[[----- FIN CONFIGURACION AVANZADA -----------------------------------------]]
@@ -152,7 +153,7 @@ _log(INFO, release['name']..
 ' ver '..release['ver']..'.'..release['mayor']..'.'..release['minor'])
 
 -- obtener el precio kWh
-local preciokwh = preciokwhmercadolibre --TODO se puede obtener de una web?.
+local preciokwh = preciokwhmercadolibre -- TODO se puede obtener de una web?.
 local precioMedioDia = 0
 if pvpc then
   -- obtener el precio para esta hora

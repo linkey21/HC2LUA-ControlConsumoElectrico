@@ -7,6 +7,8 @@
 --[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
 energyDev = 547           -- ID del dispositivo de energia
 propertyName = 'value'		-- propiedad del dispositivo para recuperar la energia
+usuarioHC2 = 'admin'      -- usuario para conectar al HC2
+claveHC2 = 'MDA2011Adm&'  -- contraseña para del usuario de conexion
 --[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
 
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
@@ -15,7 +17,9 @@ propertyName = 'value'		-- propiedad del dispositivo para recuperar la energia
 local release = {name='ControlConsumoElect.resetButton', ver=0, mayor=0,
  minor=4}
 local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
-globalVarName = 'consumoEnergia'    -- nombre de la variable global
+-- definir nombre de la variable usando el nombre del dispositivo
+globalVarName = fibaro:getName(_selfId)
+tcpHC2 =  false                     -- objeto que representa una conexion TCP
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log
 nivelLog = DEBUG                    -- nivel de log
 --[[consumoTab
@@ -36,6 +40,74 @@ function _log(level, log)
     fibaro:debug(log)
   end
   return
+end
+
+--[[----------------------------------------------------------------------------
+isVariable(varName)
+	comprueba si existe una variable global dada(varName)
+--]]
+function isVariable(varName)
+  -- comprobar si existe
+  local valor, timestamp = fibaro:getGlobal(varName)
+  if (valor and  timestamp > 0) then return true end
+  return false
+end
+
+--[[----------------------------------------------------------------------------
+newGlobal(varName, seteo)
+	crea una variable global
+--]]
+function newGlobal(varName, seteo)
+  -- si no exite la variable se crea
+  if not isVariable(varName) then
+    _log(DEBUG, 'no existe variable global!')
+    -- obtener IP y puerto
+    local IPAddress = fibaro:getValue(_selfId, 'IPAddress')
+    local TCPPort = fibaro:getValue(_selfId, 'TCPPort')
+    if IPAddress == '' or TCPPort == 0 then
+      fibaro:log('Configure IP:Port')
+      _log(INFO,'Configure IP:Port' )
+    end
+    -- si no existe conexion previa
+    if not tcpHC2 then
+      -- obtener conexion TCP con el HC2
+      tcpHC2 = Net.FHttp('localhost', 80)
+    end
+    -- validar sesion
+    tcpHC2:setBasicAuthentication(usuarioHC2, claveHC2)
+    -- enviar un POST para crear variable
+    local response, status, errorCode
+    --response, status, errorCode = tcpHC2:POST("/api/globalVariables", "name=" ..
+    --varName.."&value=0?eadOnly=false?isEnum=false") -- .. "&value=0"
+    response, status, errorCode = tcpHC2:GET('/api/globalVariables/')
+    local jsonTable = json.decode(response)
+    jsonTable[#jsonTable + 1] = {name = varName, value = '0', readOnly = false,
+    isEnum = false}
+    local json = json.encode(jsonTable)
+    response, status, errorCode = tcpHC2:PUT('/api/globalVariables/', json)
+    _log(DEBUG, 'response: '..response..' status: '..status..' errorCode: '
+     ..errorCode)
+     if (errorCode == 0 and tonumber(status) < 400) then
+       -- si se ha pasado un valor(seteo)
+       if seteo then
+         -- parsear tipo
+         if type(seteo) == 'table' then
+           seteo = json.encode(seteo)
+         elseif type(seteo) == 'number' then
+           seteo = tostring(seteo)
+         elseif type(seteo) == 'string' then
+        else
+          seteo = '0'
+        end
+        -- setear la variable
+        fibaro:setGlobal(varName, json.encode(seteo))
+       end
+       return 0, seteo
+     else
+       return status, 'No se ha podido crear la variable global'
+     end
+  end
+  return 1, 'La variable ya existe'
 end
 
 --[[----------------------------------------------------------------------------
@@ -64,8 +136,15 @@ resetConsumo()
 	inicializa (vacia) la tabla de consumos
 --]]
 function resetConsumo()
-  local consumoTab = {}
-  fibaro:setGlobal(globalVarName, json.encode(consumoTab))
+  -- comprobar si exite la variable global para almacenar consumos
+  while not isVariable(globalVarName) do
+    fibaro:sleep(1000)
+    -- refrescar la etiqueta status
+    local status = 'PARADO: definir variable global'
+    fibaro:call(_selfId, 'setProperty', 'ui.lbStatus.value', status)
+  end
+  -- vaciar variable global
+  fibaro:setGlobal(globalVarName, json.encode({}))
   -- almacenar consumo actual
   local consumoActual = tonumber(fibaro:getValue(energyDev, propertyName))
   return setConsumo(consumoActual)
@@ -142,9 +221,9 @@ end
 
 --[[------- INICIA LA EJECUCION ----------------------------------------------]]
 -- resetear la tabla de consumos
-local status = resetConsumo()
+_log(INFO, 'reset de la tabla de consumo: '..resetConsumo())
 
--- proponer como dia de inicio de ciclo el mismo dias del mes siguiente a la
+-- proponer como dia de inicio de ciclo el mismo dia del mes siguiente a la
 -- fecha origen de ciclo actual
 local clave, dia, mes, anno, dias, segs, fecha
 -- obtener fecha origen
@@ -165,7 +244,7 @@ fibaro:call(_selfId, 'setProperty', 'ui.diaInicioCiclo.value', fecha)
 _log(DEBUG, fecha)
 
 -- invocar al boton de actualizacion de datos
-fibaro:call(_selfId, "pressButton", "14")
+fibaro:call(_selfId, "pressButton", "6")
 --[[----- FIN DE LA EJECUCION ------------------------------------------------]]
 
 --[[----- INFORME DE RESULTADOS ----------------------------------------------]]
