@@ -11,7 +11,7 @@ local diaCambioCiclo = '1'	-- dia del mes en que cambia el ciclo de facturacion
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
 
 --[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
-local release = {name='ControlConsumoElect.mainLoop', ver=0, mayor=0, minor=3}
+local release = {name='ControlConsumoElect.mainLoop', ver=0, mayor=0, minor=4}
 local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
 local diaCambioCiclo = fibaro:get(_selfId, 'ui.diaInicioCiclo.value')
 diaCambioCiclo = tonumber(string.sub(diaCambioCiclo, 1, 2))

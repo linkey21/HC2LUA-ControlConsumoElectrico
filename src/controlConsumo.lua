@@ -16,7 +16,7 @@
 
 --[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
 local release = {name='ControlConsumoElect.controlConsumo', ver=0, mayor=0,
- minor=3}
+ minor=4}
 globalVarName = 'consumoEnergia'    -- nombre de la variable global
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log
 nivelLog = DEBUG                    -- nivel de log

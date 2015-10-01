@@ -22,7 +22,7 @@ local IDIconoRecomendadoNO = 1059                 -- icono NO recomendar consumo
 
 --[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
 local release = {name='ControlConsumoElect.updateButton', ver=0, mayor=0,
- minor=3}
+ minor=4}
 local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
 globalVarName = 'consumoEnergia'    -- nombre de la variable global
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log
@@ -148,6 +148,9 @@ function getConsumoOrigen()
 end
 
 --[[----- INICIAR ------------------------------------------------------------]]
+_log(INFO, release['name']..
+' ver '..release['ver']..'.'..release['mayor']..'.'..release['minor'])
+
 -- obtener el precio kWh
 local preciokwh = preciokwhmercadolibre --TODO se puede obtener de una web?.
 local precioMedioDia = 0
@@ -246,46 +249,68 @@ fibaro:call(_selfId, "setProperty", "ui.UltimoMes.value",
  redondea(consumoActual*preciokwh, 2).." €")
 
 --[[------- ACTUALIZAR FACTURA VIRTUAL ---------------------------------------]]
+-- proceso para obtener los dias transcurridos desde el inicio de ciclo
+-- obtener la fecha origen de ciclo
+local consumo, unidad, clave, anno, diasDesdeInicio
+consumo, unidad, clave = getConsumoOrigen()
+dia = tonumber(string.sub(clave, 3, 4))
+mes = tonumber(string.sub(clave, 1, 2))
+anno = tonumber(os.date('%Y'))
+-- obtener timestamp del día origen de ciclo
+local timeOrigen = os.time({month = mes, day = dia, year = anno})
+-- obtener timestamp actual
+local timeAhora = os.time()
+-- calcular dias transcurridos desde inicio de ciclo
+diasDesdeInicio = math.floor((timeAhora - timeOrigen) / (24*60*60)) + 1
+_log(DEBUG, 'Dias desde inicio de ciclo: '..diasDesdeInicio)
+-- FIN proceso
+
 -- calcular precio termino fijo
-local euroterminofijopotenciames = potenciacontratadakw *
- preciokwhterminofijo * (tonumber(os.date("%d")))
- -- TODO calcular por los dias que van del ciclo
+local euroterminofijopotenciames = potenciacontratadakw * preciokwhterminofijo
+ * diasDesdeInicio
+ _log(DEBUG, 'Precio termino fijo: '..euroterminofijopotenciames)
+ -- refrescar etiqueta precio termino fijo
 fibaro:call(_selfId, "setProperty", "ui.TerminoFijo.value",
  redondea(euroterminofijopotenciames, 2) .. " €")
 
--- calcula el precio del consumo mes
-local euroterminoconsumo = getConsumo(tonumber(os.date('%m'))) * preciokwh
--- TODO calcular precio consumo de lo que va de ciclo
+ -- calcular consumo del ultimo ciclo y precio
+local euroterminoconsumo = getConsumo() * preciokwh
+_log(DEBUG, 'Precio termino consumo: '..euroterminoconsumo)
+-- refrescar etiqueta precio termino consumo
 fibaro:call(_selfId, "setProperty", "ui.TerminoConsumo.value",
  redondea(euroterminoconsumo, 2) .. " €")
 
 -- calcular precio impuesto electricidad
 local impuestoelectricidad = (euroterminofijopotenciames+euroterminoconsumo) *
- porcentajeimpuestoelectricidad/100;
+ porcentajeimpuestoelectricidad/100
+ _log(DEBUG, 'Precio impuesto electricidad: '..impuestoelectricidad)
+ -- refrescar etiqueta precio impuesto electricidad
 fibaro:call(_selfId, "setProperty", "ui.ImpuestoElectricidad.value",
  redondea(impuestoelectricidad, 2) .. " €")
 
 -- calcular precio alquiler equipo
-local euroalquilerequipos = precioalquilerequipodia *
- (tonumber(os.date("%d"))); -- TODO calcular por los dias que van del ciclo
+local euroalquilerequipos = precioalquilerequipodia * diasDesdeInicio
+_log(DEBUG, 'Precio alquiler equipo: '..euroalquilerequipos)
+-- refrescar etiqueta precio alquiler equipo
 fibaro:call(_selfId, "setProperty", "ui.AlquilerEquipos.value",
  redondea(euroalquilerequipos, 2) .. " €")
 
 -- calcular el IVA
 local IVA = (euroterminofijopotenciames + euroterminoconsumo +
  impuestoelectricidad + euroalquilerequipos) * porcentajeIVA/100
+ _log(DEBUG, 'IVA: '..IVA)
+ -- refrescar etiqueta IVA
 fibaro:call(_selfId, "setProperty", "ui.IVA.value", redondea(IVA,2) .. " €")
 
 -- calcular TOTAL
 local Total = euroterminofijopotenciames+euroterminoconsumo +
  impuestoelectricidad + euroalquilerequipos+IVA
+ _log(DEBUG, 'Total factura: '..Total)
+ -- refrescar etiqueta total factura
 fibaro:call(_selfId, "setProperty", "ui.Total.value",
 redondea(Total,2) .. " €")
 --[[----- FIN DE LA EJECUCION ------------------------------------------------]]
 
 --[[----- INFORME DE RESULTADOS ----------------------------------------------]]
-_log(INFO, release['name']..
-' ver '..release['ver']..'.'..release['mayor']..'.'..release['minor'])
-
 --[[----- FIN INFORME DE RESULTADOS ------------------------------------------]]
 --[[--------------------------------------------------------------------------]]

@@ -13,7 +13,7 @@ propertyName = 'value'		-- propiedad del dispositivo para recuperar la energia
 
 --[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
 local release = {name='ControlConsumoElect.resetButton', ver=0, mayor=0,
- minor=3}
+ minor=4}
 local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
 globalVarName = 'consumoEnergia'    -- nombre de la variable global
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log
@@ -119,25 +119,46 @@ function getOrigen()
   return u[1].key
 end
 
+--[[----------------------------------------------------------------------------
+bisiesto(anno)
+	devuelve true o false si es año(anno) bisiesto o no
+--]]
+function bisiesto(anno)
+  if (anno % 4 == 0 and (anno % 100 ~= 0 or anno % 400 == 0)) then
+    return true
+	end
+  return false
+end
+
+--[[----------------------------------------------------------------------------
+getDiasMes(mes, anno)
+	devuelve cuantos días tiene el mes(mes) del año(anno) indicados.
+--]]
+function getDiasMes(mes, anno)
+  local diasDelMes = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+  if bisiesto(anno) then diasDelMes[2] = 29 end
+  return diasDelMes[mes]
+end
+
 --[[------- INICIA LA EJECUCION ----------------------------------------------]]
 -- resetear la tabla de consumos
 local status = resetConsumo()
 
 -- proponer como dia de inicio de ciclo el mismo dias del mes siguiente a la
 -- fecha origen de ciclo actual
+local clave, dia, mes, anno, dias, segs, fecha
 -- obtener fecha origen
-local clave; clave = getOrigen()
+clave = getOrigen()
 -- otener dia, mes y año de la fecha origen
-local dia = tonumber(string.sub(clave, 3, 4))
-local mes = tonumber(string.sub(clave, 1, 2))
-local anno = tonumber(os.date('%Y'))
+dia = tonumber(string.sub(clave, 3, 4))
+mes = tonumber(string.sub(clave, 1, 2))
+anno = tonumber(os.date('%Y'))
 -- averiguar los dias que tiene el mes
-local diasDelMes = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
-local dias = diasDelMes[tonumber(mes)]
+dias = getDiasMes(mes, anno)
 -- averiguar los segundos que tiene el mes
-local segs = 86400 * dias
+segs = 86400 * dias
 -- saltar un mes
-local fecha = os.date('%d/%m/%y', os.time({month = mes, day = dia,
+fecha = os.date('%d/%m/%y', os.time({month = mes, day = dia,
  year = anno}) + segs)
  -- refrescar la etiqueta diaInicioCiclo
 fibaro:call(_selfId, 'setProperty', 'ui.diaInicioCiclo.value', fecha)
