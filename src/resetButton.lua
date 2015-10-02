@@ -7,8 +7,6 @@
 --[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
 energyDev = 547           -- ID del dispositivo de energia
 propertyName = 'value'		-- propiedad del dispositivo para recuperar la energia
-usuarioHC2 = 'admin'      -- usuario para conectar al HC2
-claveHC2 = 'MDA2011Adm&'  -- contraseña para del usuario de conexion
 --[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
 
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]

@@ -7,7 +7,7 @@
 \f0\b\fs30 \cf0 Control de consumo
 \b0\fs28 \
 Se basa en las lecturas aportadas por un dispositivo del que se obtienen kWh consumidos desde el origen (puesta en marcha del dispositivo).\
-El dispositivo de medici\'f3n de consumo ha de configurarse para que realice lecturas cada minuto, es decir se obtendr\'e1 el consumo desde origen cada minuto.\
+El dispositivo de medici\'f3n de consumo ha de configurarse para que realice lecturas en intervalos inferiores a una hora (recomendado 15min o menos), es decir se obtendr\'e1 el consumo desde origen cada intervalo.\
 La informaci\'f3n se almacena en una tabla que se persiste en una variable local, mediante una escena que se dispara cuando cambia el valor de consumo acumulado en el dispositivo.\
 Los valores almacenados sirven para alimentar un dispositivo virtual que muestra los datos mediante un proceso \'91update\'92 e\
 inicia la tabla con un proceso \'91reset\'92. Este dispositivo actualiza y/o reiniciar los datos desde el bucle principal.\
@@ -43,19 +43,52 @@ Lee los datos necesarios de la tabla consumo para obtener el consumo en la hora,
 Actualiza los datos de la factura virtual cada minuto, invocando al proceso \'91update\'92 y inicia el ciclo de facturaci\'f3n cada d\'eda del mes indicado invocando el proceso \'91update\'92.\
 \
 
-\b Puesta en marcha
-\b0 \
-1.- Crear variable global para almacenar datos de consumo\
-2.- Configurar nombre de la VG en la escena \'91controlConsumo.lua\'92 y en los procesos \'91resetButton\'92, \'91updateButton\'92 y \'91mainLoop\'92\
-	globalVarName = \'91consumoEnergia\'92\
-3-. Configurar la propiedad para obtener consumo desde origen en la escena y en el proceso \'91resetButton\'92 \
-	propertyName = 'energy'\
+\b Puesta en marcha\
+1.-
+\b0  Crear una variable global para almacenar datos de consumo\
+	crear una variable global con el nombre \'91controlConsumo\'92\
+
+\b \
+2.-
+\b0  Importar el dispositivo virtual \
+	importar desde el fichero /bin/ControlConsumoElect.vfib\
+
+\b \
+3.-
+\b0  Crear una escena LUA\
+	pegar el c\'f3digo del fichero /src/controlConsumo.lua\
+	configurar para que se active cuando cambia la propiedad de donde se obtiene el consumo del dispositivo f\'edsico\
 	--[[\
 	%% properties\
-	512 energy\
+	547 value\
 	--]]\
-3.- Iniciar ciclo de facturaci\'f3n\
-	lanzar proceso pulsando \'91resetButton\'92\
-4.- Iniciar escena controlConsumo (activar escena).\
 \
+	iniciar escena controlConsumo (activar escena).\
+\
+
+\b 4-.
+\b0  Configurar el dispositivo virtual\
+	configurar en el c\'f3digo del bot\'f3n \'91resetButton\'92 las variables que indican el idea del dispositivo f\'edsico y la propiedad de donde se obtiene el consumo.\
+	--[[----- CONFIGURACION DE USUARIO -------------------------------------------]]\
+	energyDev = 547           -- ID del dispositivo de energia\
+	propertyName = 'value'		-- propiedad del dispositivo para recuperar la energia\
+	--[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]\
+\
+	configurar en el c\'f3digo del bot\'f3n \'91updateButton\'92 \
+	--[[----- CONFIGURACION DE USUARIO -------------------------------------------]]\
+	local potenciacontratadakw = 4.4                  -- potencia contratada\
+	local preciokwhmercadolibre = 0.141422            -- precio kWh mercado libre\
+	local precioalquilerequipodia = 0.028644          -- alquiler de contador\
+	local porcentajeIVA = 21                          -- % IVA\
+	local porcentajeimpuestoelectricidad = 5.1127     -- % impuesto de electricidad\
+	local preciokwhterminofijo = 0.115187             -- percio kWh termino fijo\
+	local pvpc = true                                 -- si se usa tarifa PVPC\
+	local pvpcTipoTarifa = '20'                       -- '20', '20H', '20HS'\
+	local porcentajeAjusteRecomendacion = 3           -- % por encima precio medio\
+	local iDIconoRecomendadoSI = 1060                 -- icomo recomendar consumo\
+	local iDIconoRecomendadoNO = 1059                 -- icono NO recomendar consumo\
+	--[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]\
+\
+\
+ \
 }
