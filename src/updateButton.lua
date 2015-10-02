@@ -6,16 +6,16 @@
 
 --[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
 local potenciacontratadakw = 4.4                  -- potencia contratada
-local preciokwhmercadolibre = 0.141422            --
+local preciokwhmercadolibre = 0.141422            -- precio kWh mercado libre
 local precioalquilerequipodia = 0.028644          -- alquiler de contador
 local porcentajeIVA = 21                          -- % IVA
 local porcentajeimpuestoelectricidad = 5.1127     -- % impuesto de electricidad
-local preciokwhterminofijo = 0.115187             --
+local preciokwhterminofijo = 0.115187             -- percio kWh termino fijo
 local pvpc = true                                 -- si se usa tarifa PVPC
 local pvpcTipoTarifa = '20'                       -- '20', '20H', '20HS'
 local porcentajeAjusteRecomendacion = 3           -- % por encima precio medio
-local IDIconoRecomendadoSI = 1060                 -- icomo recomendar consumo
-local IDIconoRecomendadoNO = 1059                 -- icono NO recomendar consumo
+local iDIconoRecomendadoSI = 1060                 -- icomo recomendar consumo
+local iDIconoRecomendadoNO = 1059                 -- icono NO recomendar consumo
 --[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
 
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
@@ -185,10 +185,10 @@ _log(DEBUG, 'Precio hora: '..preciokwh..' €/kWh')
 
 -- calcular recomendacion consumo
 local recomendacion = 'Aprovechar'
-local iconoRecomendado = IDIconoRecomendadoSI
+local iconoRecomendado = iDIconoRecomendadoSI
 if (preciokwh > (precioMedioDia * (1 + porcentajeAjusteRecomendacion/100))) then
 	recomendacion = 'Esperar'
-  iconoRecomendado = IDIconoRecomendadoNO
+  iconoRecomendado = iDIconoRecomendadoNO
 end
 _log(DEBUG, 'Precio medio día: '..precioMedioDia ..' €/kwh')
 -- refrescar el log

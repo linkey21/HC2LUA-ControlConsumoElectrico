@@ -37,9 +37,9 @@ setEstado()
 --]]
 function setEstado(estado, mensaje)
   if estado then
-    mensaje = 'RUNNING: '..mensaje
+    mensaje = 'OK - '..mensaje
   else
-    mensaje = 'STOPPED: '..mensaje
+    mensaje = 'STOP - '..mensaje
   end
   -- referscar etiqueta de estado
   fibaro:call(_selfId, 'setProperty', 'ui.lbStatus.value', mensaje)
@@ -140,7 +140,7 @@ while true do
   local consumoStr = fibaro:getGlobalValue(globalVarName)
   local newConsumoStr = consumoStr
   _log(DEBUG, 'esperando...')
-  setEstado(true, 'Esperando lecturas de consumo')
+  setEstado(true, 'Esperando lectura')
   while consumoStr == newConsumoStr do
     fibaro:sleep(1000)
     newConsumoStr = fibaro:getGlobalValue(globalVarName)
