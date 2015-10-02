@@ -17,8 +17,7 @@
 --[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
 local release = {name='ControlConsumoElect.controlConsumo', ver=0, mayor=0,
  minor=4}
- -- definir nombre de la variable usando el nombre del dispositivo
- globalVarName = fibaro:getName(_selfId)
+globalVarName = 'controlConsumo'    -- nombre de variable global almacen consumo
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log
 nivelLog = DEBUG                    -- nivel de log
 --[[----- FIN CONFIGURACION AVANZADA -----------------------------------------]]

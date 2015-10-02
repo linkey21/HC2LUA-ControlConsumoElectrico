@@ -14,8 +14,7 @@ local release = {name='ControlConsumoElect.mainLoop', ver=0, mayor=0, minor=4}
 local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
 local diaCambioCiclo = fibaro:get(_selfId, 'ui.diaInicioCiclo.value')
 diaCambioCiclo = tonumber(string.sub(diaCambioCiclo, 1, 2))
--- definir nombre de la variable usando el nombre del dispositivo
-globalVarName = fibaro:getName(_selfId)
+globalVarName = 'controlConsumo'    -- nombre de variable global almacen consumo
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log
 nivelLog = DEBUG                    -- nivel de log
 --[[----- FIN CONFIGURACION AVANZADA -----------------------------------------]]
@@ -30,6 +29,21 @@ function _log(level, log)
     fibaro:debug(log)
   end
   return
+end
+
+--[[----------------------------------------------------------------------------
+setEstado()
+	configura el estado del dispositivo virtual
+--]]
+function setEstado(estado, mensaje)
+  if estado then
+    mensaje = 'RUNNING: '..mensaje
+  else
+    mensaje = 'STOPPED: '..mensaje
+  end
+  -- referscar etiqueta de estado
+  fibaro:call(_selfId, 'setProperty', 'ui.lbStatus.value', mensaje)
+  return estado
 end
 
 --[[----------------------------------------------------------------------------
@@ -71,24 +85,31 @@ end
 --[[----- COMIENZA LA EJECUCION ----------------------------------------------]]
 _log(INFO, release['name']..
 ' ver '..release['ver']..'.'..release['mayor']..'.'..release['minor'])
+-- configurar el estado del dispositivo
+estadoDispositivo = setEstado(true, 'Iniciando...')
 
--- si no existe la variable local para almacenar consumos
+-- esperar si no existe la variable local para almacenar consumos
 while not isVariable(globalVarName) do
   fibaro:sleep(1000)
   -- refrescar la etiqueta status
-  local status = 'PARADO: definir variable global'
-  fibaro:call(_selfId, 'setProperty', 'ui.lbStatus.value', status)
+  setEstado(false, 'Definir variable global')
 end
+-- cambiar el estado
+setEstado(true, 'Arrancando...')
 -- si la variable esta vacia
 if isEmptyVar(globalVarName) then
   -- invocar al boton reset de datos para iciar el ciclo
   fibaro:call(_selfId, "pressButton", "5")
   -- esperar hasta que se haya iniciado el ciclo
-  while isEmptyVar(globalVarName) do end
+  while isEmptyVar(globalVarName) do
+    setEstado(false, 'Configurando variable global')
+  end
 end
+-- TODO activar escena
 
 --[[--------BUCLE DE CONTROL -------------------------------------------------]]
 _log(DEBUG, "Iniciando...")
+setEstado(true, '')
 while true do
   --[[-------- ACTUALIZAR CONSUMO Y FACTURA VIRTUAL --------------------------]]
   -- invocar al boton de actualizacion de datos
@@ -108,6 +129,7 @@ while true do
   if (diaCambioCiclo == tonumber(os.date("%d"))) and
    (mesActual == mesOrigen + 1) then
     -- invocar al boton de reseteo de datos iniciar ciclo
+    setEstado(true, 'reiniciando ciclo de facturación')
     fibaro:call(_selfId, "pressButton", "5")
     _log(DEBUG, 'reinicio de ciclo de facturación '..getOrigen())
   end
@@ -118,11 +140,13 @@ while true do
   local consumoStr = fibaro:getGlobalValue(globalVarName)
   local newConsumoStr = consumoStr
   _log(DEBUG, 'esperando...')
+  setEstado(true, 'Esperando lecturas de consumo')
   while consumoStr == newConsumoStr do
     fibaro:sleep(1000)
     newConsumoStr = fibaro:getGlobalValue(globalVarName)
     -- durante la primera hora desde que se inicia el ciclo, la tabla no cambia
   end
   _log(DEBUG, 'actualizar')
+  setEstado(true, '')
 end
 --[[--------------------------------------------------------------------------]]

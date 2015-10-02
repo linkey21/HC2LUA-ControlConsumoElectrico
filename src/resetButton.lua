@@ -17,8 +17,7 @@ claveHC2 = 'MDA2011Adm&'  -- contraseña para del usuario de conexion
 local release = {name='ControlConsumoElect.resetButton', ver=0, mayor=0,
  minor=4}
 local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
--- definir nombre de la variable usando el nombre del dispositivo
-globalVarName = fibaro:getName(_selfId)
+globalVarName = 'controlConsumo'    -- nombre de variable global almacen consumo
 tcpHC2 =  false                     -- objeto que representa una conexion TCP
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log
 nivelLog = DEBUG                    -- nivel de log

@@ -24,8 +24,7 @@ local IDIconoRecomendadoNO = 1059                 -- icono NO recomendar consumo
 local release = {name='ControlConsumoElect.updateButton', ver=0, mayor=0,
  minor=4}
 local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
--- definir nombre de la variable usando el nombre del dispositivo
-globalVarName = fibaro:getName(_selfId)
+globalVarName = 'controlConsumo'    -- nombre de variable global almacen consumo
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log
 nivelLog = DEBUG                    -- nivel de log
 --[[----- FIN CONFIGURACION AVANZADA -----------------------------------------]]
