@@ -61,17 +61,20 @@ formatConsumo()
 --]]
 function formatConsumo()
   local consumoTab = {}
-  for m = 1, 12 do
+  for m = 1, 60 do -- 12 do
     local mes = string.format('%.2d',m)
-    for d = 1, 31 do
+    for d = 1, 24 do -- 31 do
       local dia = string.format('%.2d',d)
-        for h = 1, 24 do
+        for h = 1, 4 do -- 24 do
           local hora = string.format('%.2d',h)
           local indConsumo = mes..dia..hora
-          consumoTab[indConsumo] = {valor = 0, unidad = 'kWh'}
+          consumoTab[indConsumo] = {ts = os.tieme(), valor = 0,
+           estado = {precio = 0, W = 0, recomendar = true }}
         end
     end
   end
+  consumoTab[indConsumo] = {ts = os.tieme(), valor = 1, estado = {precio = 1,
+   W = 1, recomendar = true }}
   fibaro:setGlobal(globalVarName, json.encode(consumo))
   return 0
 end
@@ -116,3 +119,32 @@ function potenciaMedia(consumoTab)
   consumo = consumoTab[#consumoTab].valor
   return 1000 * consumo * 3600 / tiempo
 end
+
+
+--[[
+%% properties
+%% globals
+EnergiaMes
+--]]
+
+globalVarName = 'consumoV2'
+
+function _format()
+  local consumoTab = {}
+  for m = 1, 60 do -- 12 do
+    for d = 1, 24 do -- 31 do
+        for h = 1, 4 do -- 24 do
+          consumoTab[#consumoTab + 1] = {consummo = {ts = os.time(), valor = 0},
+          estado = {precio = 0,W = 0, recomendar = m..'-'..d..'-'..h }}
+        end
+    end
+  end
+  -- ordenar la tabla por timeStamp por si el primer elemento no fuera el origen
+  --table.sort(consumoTab, function (a1, a2) return a1.ts < a2.ts; end)
+  fibaro:setGlobal(globalVarName, json.encode(consumoTab))
+  return 0
+end
+
+fibaro:debug(_format())
+
+fibaro:debug(fibaro:getGlobal(globalVarName))
