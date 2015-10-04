@@ -109,11 +109,11 @@ getConsumo(a, b, c)
 --]]
 function getConsumo(a, b, c)
   local consumoTab = json.decode(fibaro:getGlobalValue(globalVarName))
-  local clave = ''
+  local clave
   -- otener el consumo origen por si fuera necesario restarlo del total
   local consumoIni, unidadIni, claveIni = getConsumoOrigen()
   if not a then
-   local clave = ' '
+    clave = ''
   elseif not b then
     clave = string.format('%.2d',a)
   elseif not c then

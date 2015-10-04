@@ -46,7 +46,7 @@ end
 --[[----------------------------------------------------------------------------
 getConsumo(a, b, c)
 	devuelve el consumo del mes, dia del mes u hora del dia del mes.
-	si no se pasan parametros se vevuel el total acumulado
+	si no se pasan parametros se devuelve el total acumulado
 	si se pasa 1 argumento,   se considera el (mes)
 	si se pasan 2 argumentos, se consideran (dia, mes)
 	si se pasan 3 argumentos, se consideran (hora, dia, mes)

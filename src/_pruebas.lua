@@ -75,3 +75,44 @@ function formatConsumo()
   fibaro:setGlobal(globalVarName, json.encode(consumo))
   return 0
 end
+
+--[[----------------------------------------------------------------------------
+getConsumo(timeStamp)
+	devuelve el consumo desde el momento inicado haasta la actualidad
+--]]
+function getConsumo(consumoTab, stampIni, stampFin)
+  local stampFin; stampFin = os.time()
+  -- otener el consumo origen por si fuera necesario restarlo del total
+  local consumoOrigen, stampOrigen = getConsumoOrigen()
+  local consumo = 0
+  for key, value in pairs(consumoTab) do
+    local stampActual; stampActual = value.timeStamp
+    if stampActual > stampIni and stampActual <= stampFin and
+     stampActual ~= stampOrigen then
+      consumo = consumo + value.valor
+    end
+  end
+  return consumo
+end
+
+--[[----------------------------------------------------------------------------
+getConsumoOrigen()
+	devuelve el consumo inicial valor, unidad, fecha mmddhh
+--]]
+function getConsumoOrigen(consumoTab)
+  -- ordenar la tabla por timeStamp por si el primer elemento no fuera el origen
+  table.sort(consumoTab, function (a1, a2) return a1.timeStamp < a2.timeStamp;
+   end)
+  return consumoTab[1].valor, consumoTab[1].timeStamp
+end
+
+function potenciaMedia(consumoTab)
+  local tiempo, consumo
+  -- ordenar la tabla por timeStamp por si el primer elemento no fuera el origen
+  table.sort(consumoTab, function (a1, a2) return a1.timeStamp < a2.timeStamp;
+   end)
+  tiempo = consumoTab[#consumoTab].timeStamp -
+   consumoTab[#consumoTab -1 ].timeStamp
+  consumo = consumoTab[#consumoTab].valor
+  return 1000 * consumo * 3600 / tiempo
+end
