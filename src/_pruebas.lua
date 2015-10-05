@@ -56,30 +56,6 @@ function newGlobal(varName, seteo)
 end
 
 --[[----------------------------------------------------------------------------
-formatConsumo()
-	inserta un valor 0 en todos los posibles valores de la tabla de consumos
---]]
-function formatConsumo()
-  local consumoTab = {}
-  for m = 1, 60 do -- 12 do
-    local mes = string.format('%.2d',m)
-    for d = 1, 24 do -- 31 do
-      local dia = string.format('%.2d',d)
-        for h = 1, 4 do -- 24 do
-          local hora = string.format('%.2d',h)
-          local indConsumo = mes..dia..hora
-          consumoTab[indConsumo] = {ts = os.tieme(), valor = 0,
-           estado = {precio = 0, W = 0, recomendar = true }}
-        end
-    end
-  end
-  consumoTab[indConsumo] = {ts = os.tieme(), valor = 1, estado = {precio = 1,
-   W = 1, recomendar = true }}
-  fibaro:setGlobal(globalVarName, json.encode(consumo))
-  return 0
-end
-
---[[----------------------------------------------------------------------------
 getConsumo(timeStamp)
 	devuelve el consumo desde el momento inicado haasta la actualidad
 --]]
@@ -126,22 +102,28 @@ end
 %% globals
 EnergiaMes
 --]]
-
+-- v2.0
 globalVarName = 'consumoV2'
 
 function _format()
-  local consumoTab = {}
+  local ctrlEnergia, consumo, estado
+  ctrlEnergia = {estado = {}, consumo = {}}
+  consumo = ctrlEnergia['consumo']
+  estado = ctrlEnergia['estado']
   for m = 1, 60 do -- 12 do
     for d = 1, 24 do -- 31 do
-        for h = 1, 4 do -- 24 do
-          consumoTab[#consumoTab + 1] = {consummo = {ts = os.time(), valor = 0},
-          estado = {precio = 0,W = 0, recomendar = m..'-'..d..'-'..h }}
+        for h = 1, 6 do -- 24 do
+          consumo[#consumo + 1] = {timeStamp = os.time(), kWh = 0}
         end
     end
   end
+  estado = {precio = 0, energia = 0, recomendado = false,
+   consumoOrigen = {timeStamp = os.time(), kWh = 0}}
+  ctrlEnergia['consumo'] = consumo
+  ctrlEnergia['estado'] = estado
   -- ordenar la tabla por timeStamp por si el primer elemento no fuera el origen
   --table.sort(consumoTab, function (a1, a2) return a1.ts < a2.ts; end)
-  fibaro:setGlobal(globalVarName, json.encode(consumoTab))
+  fibaro:setGlobal(globalVarName, json.encode(ctrlEnergia))
   return 0
 end
 

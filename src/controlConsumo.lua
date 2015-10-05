@@ -15,8 +15,8 @@
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
 
 --[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
-local release = {name='ControlConsumoElect.controlConsumo', ver=0, mayor=0,
- minor=4}
+local release = {name='ControlConsumoElect.controlConsumo', ver=2, mayor=0,
+ minor=0}
 globalVarName = 'controlConsumo'    -- nombre de variable global almacen consumo
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log
 nivelLog = DEBUG                    -- nivel de log
@@ -44,95 +44,72 @@ function redondea(num, idp)
 end
 
 --[[----------------------------------------------------------------------------
-getConsumo(a, b, c)
-	devuelve el consumo del mes, dia del mes u hora del dia del mes.
-	si no se pasan parametros se devuelve el total acumulado
-	si se pasa 1 argumento,   se considera el (mes)
-	si se pasan 2 argumentos, se consideran (dia, mes)
-	si se pasan 3 argumentos, se consideran (hora, dia, mes)
+isEmptyVar(varName)
+	comprueba si una variable global dada(varName) esta vacia
 --]]
-function getConsumo(a, b, c)
-  local consumoTab = json.decode(fibaro:getGlobalValue(globalVarName))
-  local clave = ''
+function isEmptyVar(varName)
+  -- comprobar si esta vacia
+  local valor, timestamp = fibaro:getGlobal(varName)
+  if (not valor or valor == '0') then return true end
+  return false
+end
+
+--[[----------------------------------------------------------------------------
+getConsumo(consumoTab, stampIni, stampFin)
+	devuelve el consumo desde el momento inicado hasta la actualidad o stampFin
+--]]
+function getConsumo(consumoTab, stampIni, stampFin)
+  -- si no se indica el final se toma el momento actual
+  if not stampFin then stampFin = os.time() end
   -- otener el consumo origen por si fuera necesario restarlo del total
-  local consumoIni, unidadIni, claveIni = getConsumoOrigen()
-  if not a then
-   local clave = ' '
-  elseif not b then
-    clave = string.format('%.2d',a)
-  elseif not c then
-    clave= string.format('%.2d',b)..string.format('%.2d',a)
-  else
-    clave= string.format('%.2d',c)..string.format('%.2d',b)..
-    string.format('%.2d',a)
-  end
+  local consumoOrigen, stampOrigen = getConsumoOrigen()
   local consumo = 0
   for key, value in pairs(consumoTab) do
-    if (clave == string.sub(key, 1, #clave)) and (key ~= claveIni) then
-      consumo = consumo + value.valor
-      unidad = value.unidad
+    local stampActual; stampActual = value.timeStamp
+    if stampActual > stampIni and stampActual <= stampFin and
+     stampActual ~= stampOrigen then
+      consumo = consumo + value.kWh
     end
-    -- consumo = consumo + getConsumoDia(d,mes)
   end
-  -- retirar el consumo inicial
-  return consumo, unidad
+  return consumo
 end
 
 --[[----------------------------------------------------------------------------
-getConsumoOrigen()
+getConsumoOrigen(consumoTab)
 	devuelve el consumo inicial valor, unidad, fecha mmddhh
 --]]
-function getConsumoOrigen()
-  local consumoTab = json.decode(fibaro:getGlobalValue(globalVarName))
-  -- ordenar la tabla para compara tomar el primer valor
-  local u = {}
-  for k, v in pairs(consumoTab) do table.insert(u, { key = k, value = v }) end
-  table.sort(u, function (a1, a2) return a1.key < a2.key; end)
-  return u[1].value.valor, u[1].value.unidad, u[1].key
+function getConsumoOrigen(consumoTab)
+  local estado; estado = consumoTab['estado']
+  return  estado['consumoOrigen'].kWh
 end
 
 --[[----------------------------------------------------------------------------
-setConsumo(hora, dia, mes, valor)
-	almacena el consumo horario.
-	si se pasa 1 parametro lo almacena en la hora actual del sistema (valor)
-	en otro caso debe recibir 4 parametros indicando (hora, dia, mes, valor)
-	si la clave 'mesdiahora' exite el valor se acumula al anterior
+setConsumo(timeStamp, valor)
+	almacena el consumo
 --]]
-function setConsumo(a, b, c, d)
-  local hora = 0
-  local dia = 0
-  local mes = 0
-  local valor = 0
-  if not a then return 1 -- error
-  elseif not b then -- setear consumo actual
-    hora = tonumber(os.date("%H"))
-    dia = tonumber(os.date("%d"))
-    mes = tonumber(os.date("%m"))
-    valor = a
-  elseif not c then return 2 -- error
-  elseif not d then return 3 -- error
-  else -- setear consumo hora
-    hora = a
-    dia = b
-    mes = c
-    valor = d
+function setConsumo(globalVarName, timeStamp, valor)
+  -- si no se indica el instante en el que se mide el consumo se toma el actual
+  if not timeStamp then timeStamp = os.time() end
+  local ctrlEnergia, consumo, estado
+  -- recuperar la tabla desde la variable global
+  ctrlEnergia = json.decode(fibaro:getGlobalValue(globalVarName))
+  consumo = ctrlEnergia['consumo']
+  estado = ctrlEnergia['estado']
+  -- si no hay estado es que no se ha iniciado la tabla
+  if not estado then
+    -- guardar el consumo origen en la tabla de estado
+    estado = {precio = getPrecio(), energia = getEnergia(),
+     recomendado = recomendar(),
+     consumoOrigen = {timeStamp = timeStamp, kWh = valor}}
+  else
+    -- guardar la diferencia consumo en la tabla de consumo
+    consumo[#consumo + 1] = {timeStamp = timeStamp, kWh = valor}
   end
-  local consumoTab = json.decode(fibaro:getGlobalValue(globalVarName))
-  local mes = string.format('%.2d',mes)
-  local dia = string.format('%.2d',dia)
-  local hora = string.format('%.2d',hora)
-  local indConsumo = mes..dia..hora
-  -- no grabar si la clave coincide con la del consumo en origen
-  local valorOrg, unidadOrg, claveOrg = getConsumoOrigen()
-  if indConsumo ~= claveOrg then
-    -- si la clave ya existe, acumular el valor
-    if consumoTab[indConsumo] then
-      valor = valor + consumoTab[indConsumo].valor
-    end
-    -- grabar el valor en la tabla
-    consumoTab[indConsumo] = {valor = valor, unidad = 'kWh'}
-    -- guardar en la variable global
-    fibaro:setGlobal(globalVarName, json.encode(consumoTab))
+  -- grabar la tabla de control de energia
+  ctrlEnergia['consumo'] = consumo
+  ctrlEnergia['estado'] = estado
+  -- guardar en la variable global
+  fibaro:setGlobal(globalVarName, json.encode(consumoTab))
   end
   return 0
 end
