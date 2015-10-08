@@ -14,7 +14,7 @@ local preciokwhterminofijo = 0.115187             -- precio kWh termino fijo
 local pvpc = true                                 -- si se usa tarifa PVPC
 local pvpcTipoTarifa = '20'                       -- '20', '20H', '20HS'
 local porcentajeAjusteRecomendacion = 3           -- % por encima precio medio
-local iDIconoRecomendadoSI = 1060                 -- icomo recomendar consumo
+local iDIconoRecomendadoSI = 1060                 -- icono recomendar consumo
 local iDIconoRecomendadoNO = 1059                 -- icono NO recomendar consumo
 --[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
 
