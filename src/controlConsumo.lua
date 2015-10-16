@@ -1,6 +1,6 @@
 --[[
 %% properties
-547 value
+512 energy
 --]]
 
 --[[ControlConsumoElect
@@ -70,18 +70,27 @@ getConsumo(stampIni, stampFin)
 	devuelve el consumo desde el momento inicado hasta la actualidad o stampFin
 --]]
 function getConsumo(stampIni, stampFin)
-  -- intentar recuperar la tabla de conrol de energia desde la variable
+  local consumoTab, consumo, ctrlEnergia
+  -- intentar recuperar la tabla de control de energia desde la variable
   ctrlEnergia = json.decode(fibaro:getGlobalValue(globalVarName))
-  local consumoTab, consumo
   consumoTab = ctrlEnergia['consumo']
   consumo = 0
   -- si no se indica el principio del ambito
   if not stampIni then
-    -- se devuelve el total
+    -- se devuelve el total y el último timeStamp
+    local stampAnterior, stampActual
+    -- si no hay medidas de consumo se toma el stmap del Origen - 1 para que
+    -- no de tiempo = 0 en al anotar el propio consumo Origen
+    stampAnterior = ctrlEnergia['estado']['consumoOrigen'].timeStamp - 1
+    -- si hay medidas de consumo tomar el último timeStamp
     for key, value in pairs(consumoTab) do
       if value['kWh'] then consumo = consumo + value['kWh'] end
+      if value['timeStamp'] then
+        stampActual = value['timeStamp']
+        if stampActual > stampAnterior then stampAnterior = stampActual end
+      end
     end
-    return consumo
+    return consumo, stampAnterior
   elseif stampIni == 0 then -- si se indica 0 como inicio del ambito
     -- devolver el consumo origen
     return  ctrlEnergia['estado']['consumoOrigen'].kWh
@@ -99,21 +108,19 @@ function getConsumo(stampIni, stampFin)
   return consumo
 end
 
-function getPrecio()
-  --
-  return 0
+--[[----------------------------------------------------------------------------
+getEnergia(valor, timeStamp)
+	devuelve la potencia media entre la lectura anterior y la recibida
+--]]
+function getEnergia(valor, timeStamp)
+  local consumoOrigen, stampAnterior, consumoLapso, energia, lapso
+  -- obtener el stamp de la lectura anterior
+  consumoAnterior, stampAnterior = getConsumo()
+  lapso = timeStamp - stampAnterior
+  energia = redondea (1000 * ((valor * 3600)/lapso), 3)
+  _log(DEBUG, 'Energía: '..energia..' W')
+  return energia
 end
-
-function getEnergia()
-  --
-  return 0
-end
-
-function recomendar()
-  --
-  return false
-end
-
 
 
 --[[----------------------------------------------------------------------------
@@ -126,12 +133,11 @@ function setConsumo(valor, timeStamp)
   if not valor then
     -- crear una tabla vacia
     ctrlEnergia = {}
-    estado = {precio = getPrecio(), energia = getEnergia(),
-     recomendado = recomendar(),
+    estado = {energia = 0,
      consumoOrigen = {timeStamp = os.time(), kWh = 0}}
     consumo = {}; consumo[#consumo + 1] = {}
   else
-    -- si no se indica el instante en el que se mide el consumo se toma el actual
+    -- si no se indica el instante en el que se mide el consumo tomar el actual
     if not timeStamp then timeStamp = os.time() end
     -- intentar recuperar la tabla de conrol de energia desde la variable
     ctrlEnergia = json.decode(fibaro:getGlobalValue(globalVarName))
@@ -139,10 +145,9 @@ function setConsumo(valor, timeStamp)
     if (not ctrlEnergia['estado']['consumoOrigen']) or
     (ctrlEnergia['estado']['consumoOrigen'].kWh == 0) then
       -- guardar el valor como consumo origen
-      estado = {precio = getPrecio(), energia = getEnergia(),
-       recomendado = recomendar(),
+      estado = {energia = getEnergia(0, timeStamp),
        consumoOrigen = {timeStamp = timeStamp, kWh = valor}}
-      consumo = {}; consumo[#consumo + 1] = {}
+      consumo = {} --; consumo[#consumo + 1] = {}
     else -- guardar el consumo como consumo acumulado
       -- tabla de consumos
       consumo = ctrlEnergia['consumo']
@@ -150,6 +155,8 @@ function setConsumo(valor, timeStamp)
       estado = ctrlEnergia['estado']
       -- guardar la diferencia consumo en la tabla de consumo
       consumo[#consumo + 1] = {timeStamp = timeStamp, kWh = valor}
+      -- guardar la potencia media en el estado
+      estado['energia'] = getEnergia(valor, timeStamp)
     end
   end
   -- almacenar en la tabla de control de energia el estado y el consumo
@@ -163,6 +170,11 @@ end
 --[[----- COMIENZA LA EJECUCION ----------------------------------------------]]
 -- averiguar ID del dispositivo que lanza la escena
 _log(DEBUG, 'COMIENZA LA EJECUCION')
+-- la variable global no existe
+if not isVariable(globalVarName) then
+  fibaro:debug('Declarar variable global '..globalVarName)
+  fibaro:abort()
+end
 -- si la variable global esta vacia inicializarla
 if isEmptyVar(globalVarName) then
   setConsumo()
@@ -174,9 +186,9 @@ if trigger['type'] == 'property' then
   local deviceID, propertyName, consumoActual, consumoAnterior, ctrlEnergia
   deviceID = trigger['deviceID']
   propertyName = trigger['propertyName']
+  -- obtener el consumo desde el dispositivo físico
   consumoActual = tonumber(fibaro:getValue(deviceID, propertyName))
   _log(DEBUG, 'consumoActual: '.. consumoActual)
-  -- TODO si la variable global no existe no hace nada
   -- calcular el cosumo anterior
   consumoAnterior = getConsumo() + getConsumo(0)
   _log(DEBUG, 'consumoAnterior: '.. consumoAnterior)
