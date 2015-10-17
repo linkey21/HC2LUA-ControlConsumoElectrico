@@ -5,8 +5,8 @@
 ------------------------------------------------------------------------------]]
 
 --[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
-energyDev = 547           -- ID del dispositivo de energia
-propertyName = 'value'		-- propiedad del dispositivo para recuperar la energia
+energyDev = 512           -- ID del dispositivo de energia
+propertyName = 'energy'		-- propiedad del dispositivo para recuperar la energia
 --[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
 
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
@@ -15,7 +15,7 @@ propertyName = 'value'		-- propiedad del dispositivo para recuperar la energia
 local release = {name='ControlConsumoElect.resetButton', ver=0, mayor=0,
  minor=4}
 local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
-globalVarName = 'controlConsumo'    -- nombre de variable global almacen consumo
+globalVarName = 'consumoV2'    -- nombre de variable global almacen consumo
 tcpHC2 =  false                     -- objeto que representa una conexion TCP
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log
 nivelLog = DEBUG                    -- nivel de log
@@ -52,66 +52,29 @@ end
 
 --[[----------------------------------------------------------------------------
 resetConsumo()
-	inicializa (vacia) la tabla de consumos
+	inicializa (vacia) la tabla de consumos y almacena el consumoOrigen
 --]]
 function resetConsumo()
   -- comprobar si exite la variable global para almacenar consumos
   if isVariable(globalVarName) then
     -- vaciar variable global
-    fibaro:setGlobal(globalVarName, json.encode({}))
-    -- almacenar consumo actual
-    local consumoActual = tonumber(fibaro:getValue(energyDev, propertyName))
-    return setConsumo(consumoActual)
+    local ctrlEnergia, consumo, estado
+    -- crear una tabla vacia
+    ctrlEnergia = {}
+    estado = {energia = 0, consumoOrigen = {timeStamp = os.time(), kWh = 0}}
+    consumo = {} --; consumo[#consumo + 1] = {}
+    -- almacenar consumo actual como origen
+    estado['consumoOrigen'].kWh =
+     tonumber(fibaro:getValue(energyDev, propertyName))
+    estado['consumoOrigen'].timeStamp = os.time()
+    -- almacenar en la tabla de control de energia el estado y el consumo
+    ctrlEnergia['consumo'] = consumo
+    ctrlEnergia['estado'] = estado
+    -- guardar en la variable global
+    fibaro:setGlobal(globalVarName, json.encode(ctrlEnergia))
+    return ctrlEnergia
   end
-  return {mensaje = 'No existe la variable global'}
-end
-
---[[----------------------------------------------------------------------------
-setConsumo(hora, dia, mes, valor)
-	almacena el consumo horario.
-	si se pasa 1 parametro lo almacena en la hora actual del sistema (valor)
-	en otro caso debe recibir 4 parametros indicando (hora, dia, mes, valor)
---]]
-function setConsumo(a, b, c, d)
-  local hora = 0
-  local dia = 0
-  local mes = 0
-  local valor = 0
-  if not a then return 1 -- error
-  elseif not b then -- setear consumo actual
-    hora = tonumber(os.date("%H"))
-    dia = tonumber(os.date("%d"))
-    mes = tonumber(os.date("%m"))
-    valor = a
-  elseif not c then return 2 -- error
-  elseif not d then return 3 -- error
-  else -- setear consumo hora
-    hora = a
-    dia = b
-    mes = c
-    valor = d
-  end
-  local consumoTab = json.decode(fibaro:getGlobalValue(globalVarName))
-  local mes = string.format('%.2d',mes)
-  local dia = string.format('%.2d',dia)
-  local hora = string.format('%.2d',hora)
-  local indConsumo = mes..dia..hora
-  consumoTab[indConsumo] = {valor = valor, unidad = 'kWh'}
-  fibaro:setGlobal(globalVarName, json.encode(consumoTab))
-  return 0
-end
-
---[[----------------------------------------------------------------------------
-getOrigen()
-	devuelve fecha origen en formato mmddhh
---]]
-function getOrigen()
-  local consumoTab = json.decode(fibaro:getGlobalValue(globalVarName))
-  -- ordenar la tabla para compara tomar el primer valor
-  local u = {}
-  for k, v in pairs(consumoTab) do table.insert(u, { key = k, value = v }) end
-  table.sort(u, function (a1, a2) return a1.key < a2.key; end)
-  return u[1].key
+  _log(DEBUG, 'Declarar variable global '..globalVarName)
 end
 
 --[[----------------------------------------------------------------------------
@@ -136,17 +99,22 @@ function getDiasMes(mes, anno)
 end
 
 --[[------- INICIA LA EJECUCION ----------------------------------------------]]
--- resetear la tabla de consumos
-_log(INFO, resetConsumo())
+--
+
+-- resetear la tabla de consumos y recuperar la tabla de consumo
+ctrlEnergia = resetConsumo()
+local consumoTab, estadoTab
+consumoTab = ctrlEnergia['consumo']
+estadoTab = ctrlEnergia['estado']
 
 -- proponer como dia de inicio de ciclo el mismo dia del mes siguiente a la
 -- fecha origen de ciclo actual
-local clave, dia, mes, anno, dias, segs, fecha
+local dia, mes, anno, dias, segs, fecha, stamp
 -- obtener fecha origen
-clave = getOrigen()
+stamp = estadoTab['consumoOrigen'].timeStamp
 -- otener dia, mes y año de la fecha origen
-dia = tonumber(string.sub(clave, 3, 4))
-mes = tonumber(string.sub(clave, 1, 2))
+dia = tonumber(os.date('%d', stamp))
+mes = tonumber(os.date('%m', stamp))
 anno = tonumber(os.date('%Y'))
 -- averiguar los dias que tiene el mes
 dias = getDiasMes(mes, anno)

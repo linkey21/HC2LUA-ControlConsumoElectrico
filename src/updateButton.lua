@@ -24,7 +24,7 @@ local iDIconoRecomendadoNO = 1059                 -- icono NO recomendar consumo
 local release = {name='ControlConsumoElect.updateButton', ver=0, mayor=0,
  minor=4}
 local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
-globalVarName = 'controlConsumo'    -- nombre de variable global almacen consumo
+globalVarName = 'consumoV2'    -- nombre de variable global almacen consumo
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log
 nivelLog = DEBUG                    -- nivel de log
 --[[----- FIN CONFIGURACION AVANZADA -----------------------------------------]]
@@ -101,55 +101,56 @@ function normalizaPVPCTab(precioTab)
 end
 
 --[[----------------------------------------------------------------------------
-getConsumo(a, b, c)
-	devuelve el consumo del mes, dia del mes u hora del dia del mes.
-	si se pasa 1 argumento,   se considera el (mes)
-	si se pasan 2 argumentos, se consideran (dia, mes)
-	si se pasan 3 argumentos, se consideran (hora, dia, mes)
+getConsumo(stampIni, stampFin)
+	devuelve el consumo desde el momento inicado hasta la actualidad o stampFin
 --]]
-function getConsumo(a, b, c)
-  local consumoTab = json.decode(fibaro:getGlobalValue(globalVarName))
-  local clave
-  -- otener el consumo origen por si fuera necesario restarlo del total
-  local consumoIni, unidadIni, claveIni = getConsumoOrigen()
-  if not a then
-    clave = ''
-  elseif not b then
-    clave = string.format('%.2d',a)
-  elseif not c then
-    clave= string.format('%.2d',b)..string.format('%.2d',a)
-  else
-    clave= string.format('%.2d',c)..string.format('%.2d',b)..
-    string.format('%.2d',a)
-  end
-  local consumo = 0
-  for key, value in pairs(consumoTab) do
-    if (clave == string.sub(key, 1, #clave)) and (key ~= claveIni) then
-      consumo = consumo + value.valor
-      unidad = value.unidad
+function getConsumo(stampIni, stampFin)
+  local consumoTab, consumo, ctrlEnergia
+  -- intentar recuperar la tabla de control de energia desde la variable
+  ctrlEnergia = json.decode(fibaro:getGlobalValue(globalVarName))
+  consumoTab = ctrlEnergia['consumo']
+  consumo = 0
+  -- si no se indica el principio del ambito
+  if not stampIni then
+    -- se devuelve el total y el último timeStamp
+    local stampAnterior, stampActual
+    -- si no hay medidas de consumo hay un error
+    stampAnterior = 0
+    -- tomar el último timeStamp
+    for key, value in pairs(consumoTab) do
+      if value['kWh'] then consumo = consumo + value['kWh'] end
+      if value['timeStamp'] then
+        stampActual = value['timeStamp']
+        if stampActual > stampAnterior then stampAnterior = stampActual end
+      end
     end
-    -- consumo = consumo + getConsumoDia(d,mes)
+    return consumo, stampAnterior
+  elseif stampIni == 0 then -- si se indica 0 como inicio del ambito
+    -- devolver el consumo origen
+    return  ctrlEnergia['estado']['consumoOrigen'].kWh
   end
-  -- retirar el consumo inicial
-  return consumo, unidad
-end
-
---[[----------------------------------------------------------------------------
-getConsumoOrigen()
-	devuelve el consumo inicial valor, unidad, fecha mmddhh
---]]
-function getConsumoOrigen()
-  local consumoTab = json.decode(fibaro:getGlobalValue(globalVarName))
-  -- ordenar la tabla para comparar tomar el primer valor
-  local u = {}
-  for k, v in pairs(consumoTab) do table.insert(u, { key = k, value = v }) end
-  table.sort(u, function (a1, a2) return a1.key < a2.key; end)
-  return u[1].value.valor, u[1].value.unidad, u[1].key
+  -- si no se indica el final se toma el momento actual
+  if not stampFin then stampFin = os.time() end
+  -- se devuelve el total del ambito indicado (stampIni, stampFin)
+  for key, value in pairs(consumoTab) do
+    local stampActual; stampActual = value.timeStamp
+      if stampActual > stampIni and stampActual <= stampFin and
+        stampActual ~= stampOrigen then
+        consumo = consumo + value.kWh
+      end
+  end
+  return consumo
 end
 
 --[[----- INICIAR ------------------------------------------------------------]]
 _log(INFO, release['name']..
 ' ver '..release['ver']..'.'..release['mayor']..'.'..release['minor'])
+
+-- recuperar la tabla de consumo
+ctrlEnergia = json.decode(fibaro:getGlobalValue(globalVarName))
+local consumoTab, estadoTab
+consumoTab = ctrlEnergia['consumo']
+estadoTab = ctrlEnergia['estado']
 
 -- obtener el precio kWh
 local preciokwh = preciokwhmercadolibre -- TODO se puede obtener de una web?.
@@ -198,42 +199,33 @@ preciokwh..'€/kWh '..recomendacion)
 fibaro:call(_selfId, 'setProperty', "currentIcon", iconoRecomendado)
 
 -- obtener consumo origen
-local consumoOrigen, unidad, clave
-consumoOrigen, unidad, clave = getConsumoOrigen()
+local consumoOrigen
+consumoOrigen = estadoTab['consumoOrigen'].kWh
 -- refrescar etiqueta de consumo origen
-fibaro:call(_selfId, "setProperty",
- "ui.ActualOrigen.value",tostring(consumoOrigen).." "..unidad)
+fibaro:call(_selfId, 'setProperty',
+ 'ui.ActualOrigen.value',tostring(consumoOrigen)..' kWh')
 
--- calcular consumo acumulado y potencia media de la ultima hora/fracion
-local hora = tonumber(os.date("%H"))
-local dia = tonumber(os.date("%d"))
-local mes = tonumber(os.date("%m"))
-local consumoActual = getConsumo(hora, dia, mes)
-local tiempo = os.date('*t')
--- si el consumo de la hora actual es 0 se toma la hora anterior
-if consumoActual == 0 then
-  hora = hora - 1
-  consumoActual = getConsumo(hora, dia, mes)
-end
-tiempo.min = 0;  tiempo.sec = 0; tiempo.hour = hora
-tiempo = (os.time() - os.time(tiempo))
-_log(DEBUG, 'Tiempo: '..tiempo..' seg.')
--- potencia = kWh*3600/t
-local potenciaMedia = redondea(1000 * (consumoActual * 3600 / tiempo), 2)
+-- obtener potencia media
+local potenciaMedia; potenciaMedia = estadoTab['energia']
 _log(DEBUG, 'Potencia media: '.. potenciaMedia..' W')
-_log(DEBUG, 'Consumo última hora: '..consumoActual)
+-- refrescar etiqueta potencia media
+fibaro:call(_selfId, "setProperty", "ui.PotenciaMedia.value",
+potenciaMedia..' W')
 
+-- comienza el calculo de consumos
+local consumoActual
+-- calcular consumo acumulado de la ultima hora
+-- restar los segundos de una hora o desde la horaActual:00 ?
+consumoActual = getConsumo(os.time() - 3600, os.time())
+_log(DEBUG, 'Consumo última hora: '..consumoActual)
 -- refrescar etiqueta consumo ultima hora
 fibaro:call(_selfId, "setProperty", "ui.UltimaHora.value",
  redondea(consumoActual, 2).." kWh / "..
  redondea(consumoActual*preciokwh, 2).." €")
 
- -- refrescar etiqueta potencia media
-fibaro:call(_selfId, "setProperty", "ui.PotenciaMedia.value",
- potenciaMedia..' W')
-
 -- calcular consumo acumulado del dia
-consumoActual = getConsumo(tonumber(os.date("%d")), tonumber(os.date("%m")))
+-- restar los segundos de un dia 24h o calcular desde las 00:00h?
+consumoActual = getConsumo(os.time() - 3600 * 24, os.time())
 _log(DEBUG, 'Consumo último día: '..consumoActual)
 -- refrescar etiqueta consumo del ultimo dia
 fibaro:call(_selfId, "setProperty", "ui.Ultimas24H.value",
@@ -249,17 +241,11 @@ fibaro:call(_selfId, "setProperty", "ui.UltimoMes.value",
  redondea(consumoActual*preciokwh, 2).." €")
 
 --[[------- ACTUALIZAR FACTURA VIRTUAL ---------------------------------------]]
--- proceso para obtener los dias transcurridos desde el inicio de ciclo
--- obtener la fecha origen de ciclo
-local consumo, unidad, clave, anno, diasDesdeInicio
-consumo, unidad, clave = getConsumoOrigen()
-dia = tonumber(string.sub(clave, 3, 4))
-mes = tonumber(string.sub(clave, 1, 2))
-anno = tonumber(os.date('%Y'))
--- obtener timestamp del día origen de ciclo
-local timeOrigen = os.time({month = mes, day = dia, year = anno})
+local timeOrigen, timeAhora, diasDesdeInicio
+-- obtener timestamp del origen de ciclo
+timeOrigen = estadoTab['consumoOrigen'].timeStamp
 -- obtener timestamp actual
-local timeAhora = os.time()
+timeAhora = os.time()
 -- calcular dias transcurridos desde inicio de ciclo
 diasDesdeInicio = math.floor((timeAhora - timeOrigen) / (24*60*60)) + 1
 _log(DEBUG, 'Dias desde inicio de ciclo: '..diasDesdeInicio)

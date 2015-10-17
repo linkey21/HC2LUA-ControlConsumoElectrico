@@ -79,10 +79,9 @@ function getConsumo(stampIni, stampFin)
   if not stampIni then
     -- se devuelve el total y el último timeStamp
     local stampAnterior, stampActual
-    -- si no hay medidas de consumo se toma el stmap del Origen - 1 para que
-    -- no de tiempo = 0 en al anotar el propio consumo Origen
-    stampAnterior = ctrlEnergia['estado']['consumoOrigen'].timeStamp - 1
-    -- si hay medidas de consumo tomar el último timeStamp
+    -- si no hay medidas de consumo hay un error
+    stampAnterior = 0
+    -- tomar el último timeStamp
     for key, value in pairs(consumoTab) do
       if value['kWh'] then consumo = consumo + value['kWh'] end
       if value['timeStamp'] then
@@ -139,13 +138,13 @@ function setConsumo(valor, timeStamp)
   else
     -- si no se indica el instante en el que se mide el consumo tomar el actual
     if not timeStamp then timeStamp = os.time() end
-    -- intentar recuperar la tabla de conrol de energia desde la variable
+    -- intentar recuperar la tabla de control de energia desde la variable
     ctrlEnergia = json.decode(fibaro:getGlobalValue(globalVarName))
     -- comprobar si la variable ya tiene el consumo en origien
     if (not ctrlEnergia['estado']['consumoOrigen']) or
     (ctrlEnergia['estado']['consumoOrigen'].kWh == 0) then
       -- guardar el valor como consumo origen
-      estado = {energia = getEnergia(0, timeStamp),
+      estado = {energia = 0,
        consumoOrigen = {timeStamp = timeStamp, kWh = valor}}
       consumo = {} --; consumo[#consumo + 1] = {}
     else -- guardar el consumo como consumo acumulado
