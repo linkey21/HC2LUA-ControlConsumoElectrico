@@ -32,19 +32,32 @@ function _log(level, log)
 end
 
 --[[----------------------------------------------------------------------------
-setEstado()
+setEstado(varName, mensaje))
 	configura el estado del dispositivo virtual
 --]]
-function setEstado(estado, mensaje)
-  if estado then
-    mensaje = 'OK - '..mensaje
-  else
-    mensaje = 'STOP - '..mensaje
-  end
+function setEstado(varName, mensaje)
+  local ctrlEnergia
+  -- recuperar la tabla de control de energía desde la variable global
+  ctrlEnergia = json.decode(fibaro:getGlobalValue(varName))
+  -- asignar el mensaje del estado
+  ctrlEnergia['estado'].mensaje = mensaje
+  -- guardar la tabla de control de energía en la variable global
+  fibaro:setGlobal(varName, json.encode(ctrlEnergia))
+end
+
+--[[----------------------------------------------------------------------------
+displayEstado()
+	muestra el estado en el Log y cambia la etiqueta de estado
+--]]
+function displayEstado(varName, deviceID)
+  local ctrlEnergia, mensaje
+  -- recuperar la tabla de control de energía desde la variable global
+  ctrlEnergia = json.decode(fibaro:getGlobalValue(varName))
+  -- obtener mesaje de estado
+  mensaje = ctrlEnergia['estado'].mensaje
   -- referscar etiqueta de estado y log
-  fibaro:call(_selfId, 'setProperty', 'ui.lbStatus.value', mensaje)
+  fibaro:call(deviceID, 'setProperty', 'ui.lbStatus.value', mensaje)
   fibaro:log(mensaje)
-  return estado
 end
 
 --[[----------------------------------------------------------------------------
@@ -75,30 +88,33 @@ _log(INFO, release['name']..
 ' ver '..release['ver']..'.'..release['mayor']..'.'..release['minor'])
 
 -- configurar el estado del dispositivo
-estadoDispositivo = setEstado(true, 'Iniciando...')
+setEstado(globalVarName, 'Iniciando...')
+displayEstado(globalVarName, _selfId)
 
 -- esperar si no existe la variable local para almacenar consumos
 while not isVariable(globalVarName) do
   fibaro:sleep(1000)
   -- refrescar la etiqueta status
-  setEstado(false, 'Definir variable global')
+  setEstado(globalVarName, 'Definir variable global')
+  displayEstado(globalVarName, _selfId)
 end
 -- cambiar el estado
-setEstado(true, 'Arrancando...')
+setEstado(globalVarName, 'Arrancando...')
 -- si la variable esta vacia
 if isEmptyVar(globalVarName) then
   -- invocar al boton reset de datos para iciar el ciclo
   fibaro:call(_selfId, "pressButton", "5")
   -- esperar hasta que se haya iniciado el ciclo
   while isEmptyVar(globalVarName) do
-    setEstado(false, 'Configurando variable global')
+    setEstado(globalVarName, 'Configurando variable global')
+    displayEstado(globalVarName, _selfId)
   end
 end
 -- TODO activar escena
 
 --[[--------BUCLE DE CONTROL -------------------------------------------------]]
-_log(DEBUG, "Iniciando...")
-setEstado(true, '')
+setEstado(globalVarName, 'Iniciando...')
+displayEstado(globalVarName, _selfId)
 while true do
   --[[-------- ACTUALIZAR CONSUMO Y FACTURA VIRTUAL --------------------------]]
   -- invocar al boton de actualizacion de datos
@@ -119,7 +135,8 @@ while true do
   if (diaCambioCiclo == tonumber(os.date("%d"))) and
    (mesActual == mesOrigen + 1) then
     -- invocar al boton de reseteo de datos iniciar ciclo
-    setEstado(true, 'reiniciando ciclo de facturación')
+    setEstado(globalVarName, 'reiniciando ciclo de facturación')
+    displayEstado(globalVarName, _selfId)
     fibaro:call(_selfId, "pressButton", "5")
     _log(DEBUG, 'reinicio de ciclo de facturación '..getOrigen())
   end
@@ -129,14 +146,14 @@ while true do
   -- dispositivo virtual con el fisico
   local consumo, newConsumo
   consumo = #consumoTab; newConsumo = consumo
-  setEstado(true, 'Esperando lectura')
   _log(DEBUG, newConsumo..' Lecturas esperando...')
+  setEstado(globalVarName, 'Esperando lectura')
   while consumo == newConsumo do
     fibaro:sleep(1000)
     ctrlEnergia = json.decode(fibaro:getGlobalValue(globalVarName))
     newConsumo = #ctrlEnergia['consumo']
+    displayEstado(globalVarName, _selfId)
   end
-  _log(DEBUG, 'actualizar')
-  setEstado(true, '')
+  setEstado(globalVarName, 'actualizar')
 end
 --[[--------------------------------------------------------------------------]]

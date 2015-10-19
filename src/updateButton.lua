@@ -142,6 +142,20 @@ function getConsumo(stampIni, stampFin)
   return consumo
 end
 
+--[[----------------------------------------------------------------------------
+setEstado(varName, mensaje))
+	configura el estado del dispositivo virtual
+--]]
+function setEstado(varName, mensaje)
+  local ctrlEnergia
+  -- recuperar la tabla de control de energía desde la variable global
+  ctrlEnergia = json.decode(fibaro:getGlobalValue(varName))
+  -- asignar el mensaje del estado
+  ctrlEnergia['estado'].mensaje = mensaje
+  -- guardar la tabla de control de energía en la variable global
+  fibaro:setGlobal(varName, json.encode(ctrlEnergia))
+end
+
 --[[----- INICIAR ------------------------------------------------------------]]
 _log(INFO, release['name']..
 ' ver '..release['ver']..'.'..release['mayor']..'.'..release['minor'])
@@ -198,8 +212,8 @@ fibaro:setGlobal(globalVarName, json.encode(ctrlEnergia))
 
 _log(DEBUG, 'Precio medio día: '..precioMedioDia ..' €/kwh')
 -- refrescar el log
-fibaro:log('Precio medio:'..precioMedioDia..'€/kWh  Actual:'..
-preciokwh..'€/kWh '..textoRecomendacion)
+--setEstado(globalVarName, 'Precio medio:'..precioMedioDia..'€/kWh  Actual:'..
+--preciokwh..'€/kWh '..textoRecomendacion)
 -- refrescar icono recomendacion
 fibaro:call(_selfId, 'setProperty', "currentIcon", iconoRecomendado)
 
@@ -215,7 +229,7 @@ local potenciaMedia; potenciaMedia = estadoTab['energia']
 _log(DEBUG, 'Potencia media: '.. potenciaMedia..' W')
 -- refrescar etiqueta potencia media
 fibaro:call(_selfId, "setProperty", "ui.PotenciaMedia.value",
-potenciaMedia..' W')
+ redondea(potenciaMedia, 2)..' W')
 
 -- comienza el calculo de consumos
 local consumoActual
