@@ -14,8 +14,8 @@ local preciokwhterminofijo = 0.115187             -- percio kWh termino fijo
 local pvpc = true                                 -- si se usa tarifa PVPC
 local pvpcTipoTarifa = '20'                       -- '20', '20H', '20HS'
 local porcentajeAjusteRecomendacion = 3           -- % por encima precio medio
-local iDIconoRecomendadoSI = 1060                 -- icomo recomendar consumo
-local iDIconoRecomendadoNO = 1059                 -- icono NO recomendar consumo
+local iDIconoRecomendadoSI = 1056                 -- icomo recomendar consumo
+local iDIconoRecomendadoNO = 1055                 -- icono NO recomendar consumo
 --[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
 
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
@@ -147,8 +147,8 @@ _log(INFO, release['name']..
 ' ver '..release['ver']..'.'..release['mayor']..'.'..release['minor'])
 
 -- recuperar la tabla de consumo
+local ctrlEnergia, consumoTab, estadoTab
 ctrlEnergia = json.decode(fibaro:getGlobalValue(globalVarName))
-local consumoTab, estadoTab
 consumoTab = ctrlEnergia['consumo']
 estadoTab = ctrlEnergia['estado']
 
@@ -185,16 +185,21 @@ fibaro:call(_selfId, "setProperty", "ui.PrecioHora.value",preciokwh..' €/kWh')
 _log(DEBUG, 'Precio hora: '..preciokwh..' €/kWh')
 
 -- calcular recomendacion consumo
-local recomendacion = 'Aprovechar'
-local iconoRecomendado = iDIconoRecomendadoSI
+local iconoRecomendado, textoRecomendacion
+iconoRecomendado = iDIconoRecomendadoSI; textoRecomendacion = 'Aprovechar'
 if (preciokwh > (precioMedioDia * (1 + porcentajeAjusteRecomendacion/100))) then
-	recomendacion = 'Esperar'
   iconoRecomendado = iDIconoRecomendadoNO
+  textoRecomendacion = 'Esperar'
 end
+-- almacenar la recoemendación en la variable global
+estadoTab['recomendacion'] = iconoRecomendado
+ctrlEnergia['estado'] = estadoTab
+fibaro:setGlobal(globalVarName, json.encode(ctrlEnergia))
+
 _log(DEBUG, 'Precio medio día: '..precioMedioDia ..' €/kwh')
 -- refrescar el log
 fibaro:log('Precio medio:'..precioMedioDia..'€/kWh  Actual:'..
-preciokwh..'€/kWh '..recomendacion)
+preciokwh..'€/kWh '..textoRecomendacion)
 -- refrescar icono recomendacion
 fibaro:call(_selfId, 'setProperty', "currentIcon", iconoRecomendado)
 

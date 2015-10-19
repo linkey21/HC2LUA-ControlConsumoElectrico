@@ -14,7 +14,7 @@ local release = {name='ControlConsumoElect.mainLoop', ver=0, mayor=0, minor=4}
 local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
 local diaCambioCiclo = fibaro:get(_selfId, 'ui.diaInicioCiclo.value')
 diaCambioCiclo = tonumber(string.sub(diaCambioCiclo, 1, 2))
-globalVarName = 'controlConsumo'    -- nombre de variable global almacen consumo
+globalVarName = 'consumoV2'    -- nombre de variable global almacen consumo
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log
 nivelLog = DEBUG                    -- nivel de log
 --[[----- FIN CONFIGURACION AVANZADA -----------------------------------------]]
@@ -41,22 +41,10 @@ function setEstado(estado, mensaje)
   else
     mensaje = 'STOP - '..mensaje
   end
-  -- referscar etiqueta de estado
+  -- referscar etiqueta de estado y log
   fibaro:call(_selfId, 'setProperty', 'ui.lbStatus.value', mensaje)
+  fibaro:log(mensaje)
   return estado
-end
-
---[[----------------------------------------------------------------------------
-getOrigen()
-	devuelve fecha origen en formato mmddhh
---]]
-function getOrigen()
-  local consumoTab = json.decode(fibaro:getGlobalValue(globalVarName))
-  -- ordenar la tabla para compara tomar el primer valor
-  local u = {}
-  for k, v in pairs(consumoTab) do table.insert(u, { key = k, value = v }) end
-  table.sort(u, function (a1, a2) return a1.key < a2.key; end)
-  return u[1].key
 end
 
 --[[----------------------------------------------------------------------------
@@ -85,6 +73,7 @@ end
 --[[----- COMIENZA LA EJECUCION ----------------------------------------------]]
 _log(INFO, release['name']..
 ' ver '..release['ver']..'.'..release['mayor']..'.'..release['minor'])
+
 -- configurar el estado del dispositivo
 estadoDispositivo = setEstado(true, 'Iniciando...')
 
@@ -115,15 +104,16 @@ while true do
   -- invocar al boton de actualizacion de datos
   fibaro:call(_selfId, "pressButton", "6")
 
-  --[[-CADA HORA --------------- ---------------------------------------------]]
-    --if (tonumber(os.date("%M"))==0 and tonumber(os.date("%S"))==1) then
-    --_log(DEBUG, 'actualización horaria')
-  --end
-  --[[- FIN CADA HORA --------------------------------------------------------]]
+  -- recuperar la tabla de consumo
+  local ctrlEnergia, consumoTab, estadoTab
+  ctrlEnergia = json.decode(fibaro:getGlobalValue(globalVarName))
+  consumoTab = ctrlEnergia['consumo']
+  estadoTab = ctrlEnergia['estado']
 
   --[[-CADA CICLO DE FACTUARCION ---------------------------------------------]]
-  local mesOrigen = tonumber(string.sub(getOrigen(), 1, 2))
-  local mesActual = tonumber(os.date("%m"))
+  local mesOrigen, mesActual
+  mesOrigen = tonumber(os.date('%m', estadoTab['consumoOrigen'].timeStamp))
+  mesActual = tonumber(os.date("%m"))
   -- ajustar cambio de año
   if mesOrigen == 12 then mesOrigen = 0 end
   if (diaCambioCiclo == tonumber(os.date("%d"))) and
@@ -137,14 +127,14 @@ while true do
 
   -- esperar hasta que la tabla de consumos sufra cambios para sincronizar el
   -- dispositivo virtual con el fisico
-  local consumoStr = fibaro:getGlobalValue(globalVarName)
-  local newConsumoStr = consumoStr
-  _log(DEBUG, 'esperando...')
+  local consumo, newConsumo
+  consumo = #consumoTab; newConsumo = consumo
   setEstado(true, 'Esperando lectura')
-  while consumoStr == newConsumoStr do
+  _log(DEBUG, newConsumo..' Lecturas esperando...')
+  while consumo == newConsumo do
     fibaro:sleep(1000)
-    newConsumoStr = fibaro:getGlobalValue(globalVarName)
-    -- durante la primera hora desde que se inicia el ciclo, la tabla no cambia
+    ctrlEnergia = json.decode(fibaro:getGlobalValue(globalVarName))
+    newConsumo = #ctrlEnergia['consumo']
   end
   _log(DEBUG, 'actualizar')
   setEstado(true, '')

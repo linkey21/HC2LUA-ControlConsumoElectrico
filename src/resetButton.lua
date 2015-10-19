@@ -5,8 +5,8 @@
 ------------------------------------------------------------------------------]]
 
 --[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
-energyDev = 512           -- ID del dispositivo de energia
-propertyName = 'energy'		-- propiedad del dispositivo para recuperar la energia
+energyDev = 544           -- ID del dispositivo de energia
+propertyName = 'value'		-- propiedad del dispositivo para recuperar la energia
 --[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
 
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
@@ -19,12 +19,6 @@ globalVarName = 'consumoV2'    -- nombre de variable global almacen consumo
 tcpHC2 =  false                     -- objeto que representa una conexion TCP
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log
 nivelLog = DEBUG                    -- nivel de log
---[[consumoTab
-  tabla para almacenar consumos horarios, se usa el indice para almacenar
-  la hora, dia y mes 'mmddhh' y una tabla con el valor y la unidad, ej.
-  consumo de las 12 de la mañana del dia 17 de septiembre
-  consumo['121709'] = {valor=0.1234, unidad=kWh'}
-  --]]
 --[[----- FIN CONFIGURACION AVANZADA -----------------------------------------]]
 
 --[[
@@ -61,8 +55,9 @@ function resetConsumo()
     local ctrlEnergia, consumo, estado
     -- crear una tabla vacia
     ctrlEnergia = {}
-    estado = {energia = 0, consumoOrigen = {timeStamp = os.time(), kWh = 0}}
-    consumo = {} --; consumo[#consumo + 1] = {}
+    estado = {recomendacion = 0, energia = 0,
+     consumoOrigen = {timeStamp = os.time(), kWh = 0}}
+    consumo = {}
     -- almacenar consumo actual como origen
     estado['consumoOrigen'].kWh =
      tonumber(fibaro:getValue(energyDev, propertyName))
@@ -75,6 +70,8 @@ function resetConsumo()
     return ctrlEnergia
   end
   _log(DEBUG, 'Declarar variable global '..globalVarName)
+  fibaro:log('Declarar variable global '..globalVarName)
+  return {}
 end
 
 --[[----------------------------------------------------------------------------
@@ -104,7 +101,6 @@ end
 -- resetear la tabla de consumos y recuperar la tabla de consumo
 ctrlEnergia = resetConsumo()
 local consumoTab, estadoTab
-consumoTab = ctrlEnergia['consumo']
 estadoTab = ctrlEnergia['estado']
 
 -- proponer como dia de inicio de ciclo el mismo dia del mes siguiente a la

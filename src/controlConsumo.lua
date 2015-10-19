@@ -1,6 +1,6 @@
 --[[
 %% properties
-512 energy
+544 value
 --]]
 
 --[[ControlConsumoElect
@@ -132,7 +132,7 @@ function setConsumo(valor, timeStamp)
   if not valor then
     -- crear una tabla vacia
     ctrlEnergia = {}
-    estado = {energia = 0,
+    estado = {recomendacion = 0, energia = 0,
      consumoOrigen = {timeStamp = os.time(), kWh = 0}}
     consumo = {}; consumo[#consumo + 1] = {}
   else
@@ -144,7 +144,7 @@ function setConsumo(valor, timeStamp)
     if (not ctrlEnergia['estado']['consumoOrigen']) or
     (ctrlEnergia['estado']['consumoOrigen'].kWh == 0) then
       -- guardar el valor como consumo origen
-      estado = {energia = 0,
+      estado = {recomendacion = 0, energia = 0,
        consumoOrigen = {timeStamp = timeStamp, kWh = valor}}
       consumo = {} --; consumo[#consumo + 1] = {}
     else -- guardar el consumo como consumo acumulado
