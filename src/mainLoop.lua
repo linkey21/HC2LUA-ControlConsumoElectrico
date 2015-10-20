@@ -55,8 +55,7 @@ function displayEstado(varName, deviceID)
   ctrlEnergia = json.decode(fibaro:getGlobalValue(varName))
   -- obtener mesaje de estado
   mensaje = ctrlEnergia['estado'].mensaje
-  -- referscar etiqueta de estado y log
-  fibaro:call(deviceID, 'setProperty', 'ui.lbStatus.value', mensaje)
+  -- referscar log
   fibaro:log(mensaje)
 end
 
@@ -94,23 +93,23 @@ displayEstado(globalVarName, _selfId)
 -- esperar si no existe la variable local para almacenar consumos
 while not isVariable(globalVarName) do
   fibaro:sleep(1000)
-  -- refrescar la etiqueta status
+  -- refrescar la etiqueta estado
   setEstado(globalVarName, 'Definir variable global')
   displayEstado(globalVarName, _selfId)
 end
--- cambiar el estado
-setEstado(globalVarName, 'Arrancando...')
+
 -- si la variable esta vacia
 if isEmptyVar(globalVarName) then
   -- invocar al boton reset de datos para iciar el ciclo
   fibaro:call(_selfId, "pressButton", "5")
   -- esperar hasta que se haya iniciado el ciclo
   while isEmptyVar(globalVarName) do
+    fibaro:sleep(1000)
+    -- refrescar la etiqueta estado
     setEstado(globalVarName, 'Configurando variable global')
     displayEstado(globalVarName, _selfId)
   end
 end
--- TODO activar escena
 
 --[[--------BUCLE DE CONTROL -------------------------------------------------]]
 setEstado(globalVarName, 'Iniciando...')
@@ -119,6 +118,7 @@ while true do
   --[[-------- ACTUALIZAR CONSUMO Y FACTURA VIRTUAL --------------------------]]
   -- invocar al boton de actualizacion de datos
   fibaro:call(_selfId, "pressButton", "6")
+  fibaro:sleep(5000)
 
   -- recuperar la tabla de consumo
   local ctrlEnergia, consumoTab, estadoTab
@@ -139,6 +139,7 @@ while true do
     displayEstado(globalVarName, _selfId)
     fibaro:call(_selfId, "pressButton", "5")
     _log(DEBUG, 'reinicio de ciclo de facturación '..getOrigen())
+    fibaro:sleep(5000)
   end
   --[[-FIN CICLO DE FACTUARCION ----------------------------------------------]]
 

@@ -211,9 +211,6 @@ ctrlEnergia['estado'] = estadoTab
 fibaro:setGlobal(globalVarName, json.encode(ctrlEnergia))
 
 _log(DEBUG, 'Precio medio día: '..precioMedioDia ..' €/kwh')
--- refrescar el log
---setEstado(globalVarName, 'Precio medio:'..precioMedioDia..'€/kWh  Actual:'..
---preciokwh..'€/kWh '..textoRecomendacion)
 -- refrescar icono recomendacion
 fibaro:call(_selfId, 'setProperty', "currentIcon", iconoRecomendado)
 
@@ -224,13 +221,6 @@ consumoOrigen = estadoTab['consumoOrigen'].kWh
 fibaro:call(_selfId, 'setProperty',
  'ui.ActualOrigen.value',tostring(consumoOrigen)..' kWh')
 
--- obtener potencia media
-local potenciaMedia; potenciaMedia = estadoTab['energia']
-_log(DEBUG, 'Potencia media: '.. potenciaMedia..' W')
--- refrescar etiqueta potencia media
-fibaro:call(_selfId, "setProperty", "ui.PotenciaMedia.value",
- redondea(potenciaMedia, 2)..' W')
-
 -- comienza el calculo de consumos
 local consumoActual
 -- calcular consumo acumulado de la ultima hora
@@ -239,25 +229,37 @@ consumoActual = getConsumo(os.time() - 3600, os.time())
 _log(DEBUG, 'Consumo última hora: '..consumoActual)
 -- refrescar etiqueta consumo ultima hora
 fibaro:call(_selfId, "setProperty", "ui.UltimaHora.value",
- redondea(consumoActual, 2).." kWh / "..
- redondea(consumoActual*preciokwh, 2).." €")
+ redondea(consumoActual, 2)..' kWh')
+ --..redondea(consumoActual*preciokwh, 2).." €")
 
 -- calcular consumo acumulado del dia
 -- restar los segundos de un dia 24h o calcular desde las 00:00h?
-consumoActual = getConsumo(os.time() - 3600 * 24, os.time())
+--consumoActual = getConsumo(os.time() - 3600 * 24, os.time())
+consumoActual = getConsumo(os.time({year=tonumber(os.date('%y')),
+ month=tonumber(os.date('%m')), day=tonumber(os.date('%d')),
+ hour = 0, min = 0, sec = 0}), os.time())
 _log(DEBUG, 'Consumo último día: '..consumoActual)
 -- refrescar etiqueta consumo del ultimo dia
 fibaro:call(_selfId, "setProperty", "ui.Ultimas24H.value",
- redondea(consumoActual, 2).. " kWh / "..
- redondea(consumoActual*preciokwh, 2).." €")
+ redondea(consumoActual, 2).. ' kWh')
+--redondea(consumoActual*preciokwh, 2).." €")
 
 -- calcular consumo del ultimo ciclo
 consumoActual = getConsumo()
 _log(DEBUG, 'Consumo último ciclo: '..consumoActual)
 -- refrescar etiqueta consumo ultimo mes
-fibaro:call(_selfId, "setProperty", "ui.UltimoMes.value",
- redondea(consumoActual, 2).." kWh / "..
- redondea(consumoActual*preciokwh, 2).." €")
+--fibaro:call(_selfId, "setProperty", "ui.UltimoMes.value",
+-- redondea(consumoActual, 2)..' kWh')
+ --redondea(consumoActual*preciokwh, 2).." €")
+
+ -- obtener potencia media
+ local potenciaMedia; potenciaMedia = estadoTab['energia']
+ _log(DEBUG, 'Potencia media: '.. potenciaMedia..' W')
+ -- refrescar etiqueta potencia media
+ fibaro:call(_selfId, "setProperty", "ui.PotenciaMedia.value",
+  redondea(potenciaMedia, 2)..'W / '..redondea(consumoActual, 2)..'kWh')
+-- refrescar el log
+setEstado(globalVarName, 'Recomendación de consumo '..textoRecomendacion)
 
 --[[------- ACTUALIZAR FACTURA VIRTUAL ---------------------------------------]]
 local timeOrigen, timeAhora, diasDesdeInicio
