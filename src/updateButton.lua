@@ -235,9 +235,12 @@ fibaro:call(_selfId, "setProperty", "ui.UltimaHora.value",
 -- calcular consumo acumulado del dia
 -- restar los segundos de un dia 24h o calcular desde las 00:00h?
 --consumoActual = getConsumo(os.time() - 3600 * 24, os.time())
-consumoActual = getConsumo(os.time({year=tonumber(os.date('%y')),
- month=tonumber(os.date('%m')), day=tonumber(os.date('%d')),
- hour = 0, min = 0, sec = 0}), os.time())
+local stampIni
+stampIni = os.time({year = tonumber(os.date('%Y')),
+ month = tonumber(os.date('%m')), day = tonumber(os.date('%d')),
+ hour = 0, min = 0, sec = 0})
+ _log(DEBUG, 'El día comenzó: '..os.date('%d-%m-%Y/%H:%M:%S', stampIni))
+consumoActual = getConsumo(stampIni, os.time())
 _log(DEBUG, 'Consumo último día: '..consumoActual)
 -- refrescar etiqueta consumo del ultimo dia
 fibaro:call(_selfId, "setProperty", "ui.Ultimas24H.value",
