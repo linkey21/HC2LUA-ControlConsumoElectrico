@@ -188,14 +188,22 @@ if trigger['type'] == 'property' then
   -- obtener el consumo desde el dispositivo físico
   consumoActual = tonumber(fibaro:getValue(deviceID, propertyName))
   _log(DEBUG, 'consumoActual: '.. consumoActual)
-  -- calcular el cosumo anterior
+
+  -- obtener el cosumo anterior
   consumoAnterior = getConsumo() + getConsumo(0)
   _log(DEBUG, 'consumoAnterior: '.. consumoAnterior)
+
+  -- calcular consumo acumulado
   consumoAcumulado = redondea(consumoActual - consumoAnterior, 3)
   _log(DEBUG, 'consumoAcumulado: '.. consumoAcumulado)
+
   -- almacenar consumo
   setConsumo(consumoAcumulado)
   _log(DEBUG, fibaro:getGlobalValue(globalVarName))
+
+  -- actualizar VD
+  updateVirtualDevice(vDId)
+
 end
 --[[----- FIN DE LA EJECUCION ------------------------------------------------]]
 

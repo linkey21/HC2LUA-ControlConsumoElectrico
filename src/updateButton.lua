@@ -162,7 +162,9 @@ _log(INFO, release['name']..
 
 -- recuperar la tabla de consumo
 local ctrlEnergia, consumoTab, estadoTab
-ctrlEnergia = json.decode(fibaro:getGlobalValue(globalVarName))
+ctrlEnergia = fibaro:getGlobal(globalVarName)
+fibaro:debug(ctrlEnergia)
+ctrlEnergia = json.decode(ctrlEnergia)
 consumoTab = ctrlEnergia['consumo']
 estadoTab = ctrlEnergia['estado']
 

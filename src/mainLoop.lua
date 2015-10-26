@@ -127,18 +127,17 @@ while true do
   estadoTab = ctrlEnergia['estado']
 
   --[[-CADA CICLO DE FACTUARCION ---------------------------------------------]]
-  local mesOrigen, mesActual
-  mesOrigen = tonumber(os.date('%m', estadoTab['consumoOrigen'].timeStamp))
-  mesActual = tonumber(os.date("%m"))
+  local fechaFinCiclo
+  fechaFinCiclo = fibaro:get(_selfId, 'ui.diaInicioCiclo.value')
+  _log(DEBUG, 'Próximo inicio de ciclo: '..fechaFinCiclo)
   -- ajustar cambio de año
-  if mesOrigen == 12 then mesOrigen = 0 end
-  if (diaCambioCiclo == tonumber(os.date("%d"))) and
-   (mesActual == mesOrigen + 1) then
+  if (fechaFinCiclo == os.date('%d/%m/%y')) then
     -- invocar al boton de reseteo de datos iniciar ciclo
     setEstado(globalVarName, 'reiniciando ciclo de facturación')
     displayEstado(globalVarName, _selfId)
     fibaro:call(_selfId, "pressButton", "5")
-    _log(DEBUG, 'reinicio de ciclo de facturación '..getOrigen())
+    _log(DEBUG, 'próximo reinicio de ciclo: '..
+     fibaro:get(_selfId, 'ui.diaInicioCiclo.value'))
     fibaro:sleep(5000)
   end
   --[[-FIN CICLO DE FACTUARCION ----------------------------------------------]]
