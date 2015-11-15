@@ -62,6 +62,8 @@ function resetConsumo()
     estado['consumoOrigen'].kWh =
      tonumber(fibaro:getValue(energyDev, propertyName))
     estado['consumoOrigen'].timeStamp = os.time()
+    -- almacenar el id del VD en el estado para saber que ha sido iniciada
+    estado['VDId'] = _selfId
     -- almacenar en la tabla de control de energia el estado y el consumo
     ctrlEnergia['consumo'] = consumo
     ctrlEnergia['estado'] = estado
@@ -98,7 +100,7 @@ end
 --[[------- INICIA LA EJECUCION ----------------------------------------------]]
 --
 
--- resetear la tabla de consumos y recuperar la tabla de consumo
+-- resetear y recuperar la tabla de consumo
 ctrlEnergia = resetConsumo()
 local consumoTab, estadoTab
 estadoTab = ctrlEnergia['estado']

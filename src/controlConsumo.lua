@@ -55,14 +55,20 @@ function isVariable(varName)
 end
 
 --[[----------------------------------------------------------------------------
-isEmptyVar(varName)
-	comprueba si una variable global dada(varName) esta vacia
+isSetVar(varName)
+	comprueba si un valor de estado exite en variable global dada(varName)
+  y si lo está, devuelve su valor
 --]]
-function isEmptyVar(varName)
+function isSetVar(varName, value)
   -- comprobar si esta vacia
-  local valor, timestamp = fibaro:getGlobal(varName)
-  if (valor == nil or not valor or valor == '0') then return true end
-  return false
+  local valor, controlConsumo
+  valor = fibaro:getGlobalValue(varName)
+  controlConsumo = json.decode(valor)
+  if (not controlConsumo['estado'][value]) or
+   (controlConsumo['estado'][value] == 0) then
+    return false
+  end
+  return controlConsumo['estado'][value]
 end
 
 --[[----------------------------------------------------------------------------
@@ -128,7 +134,7 @@ setConsumo(valor, timeStamp)
 --]]
 function setConsumo(valor, timeStamp)
   local ctrlEnergia, consumo, estado
-  --si no se recive nada inicializar la variable
+  -- si no se recibe nada inicializar la variable
   if not valor then
     -- crear una tabla vacia
     ctrlEnergia = {}
@@ -148,6 +154,7 @@ function setConsumo(valor, timeStamp)
        consumoOrigen = {timeStamp = timeStamp, kWh = valor}}
       consumo = {} --; consumo[#consumo + 1] = {}
     else -- guardar el consumo como consumo acumulado
+      -- TODO comprobar si es otra hora
       -- tabla de consumos
       consumo = ctrlEnergia['consumo']
       -- tabla de estado
@@ -167,17 +174,47 @@ function setConsumo(valor, timeStamp)
 end
 
 --[[----- COMIENZA LA EJECUCION ----------------------------------------------]]
--- averiguar ID del dispositivo que lanza la escena
 _log(DEBUG, 'COMIENZA LA EJECUCION')
 -- la variable global no existe
 if not isVariable(globalVarName) then
   fibaro:debug('Declarar variable global '..globalVarName)
   fibaro:abort()
 end
--- si la variable global esta vacia inicializarla
-if isEmptyVar(globalVarName) then
-  setConsumo()
+
+-- esperar hasta que la variable global esté inicializada
+while not isSetVar(globalVarName, 'VDId') do
+  fibaro:sleep(1000)
 end
+-- obtener el id del VD
+local VDId
+VDId = isSetVar(globalVarName, 'VDId')
+
+--[[ CADA CICLO DE FACTUARCION -----------------------------------------------]]
+local fechaFinCiclo
+fechaFinCiclo = fibaro:get(VDId, 'ui.diaInicioCiclo.value'))
+_log(DEBUG, 'Próximo inicio de ciclo: '..fechaFinCiclo)
+-- ajustar cambio de año
+if (fechaFinCiclo == os.date('%d/%m/%y')) then
+  -- invocar al boton de reseteo de datos iniciar ciclo
+  fibaro:call(VDId, "pressButton", "5")
+  fibaro:sleep(5000)
+  _log(DEBUG, 'próximo reinicio de ciclo: '..
+   fibaro:get(VDId, 'ui.diaInicioCiclo.value'))
+end
+
+--[[ OBTENER PRECIO HORA -----------------------------------------------------]]
+-- para obtener precio se invoca al botón update del VD
+local precioActual
+fibaro:call(VDId, "pressButton", "6")
+--esperar hasta obtener el precio
+while not isSetVar(globalVarName, 'precio') do
+  fibaro:sleep(1000)
+end
+precioActual = isSetVar(globalVarName, 'precio')
+
+--[[ GUARDAR CONSUMO ACUMULADO -----------------------------------------------]]
+
+-- averiguar ID del dispositivo que lanza la escena
 local trigger = fibaro:getSourceTrigger()
 -- si se inicia por cambio de consumo
 local consumoAcumulado = 0
@@ -198,11 +235,14 @@ if trigger['type'] == 'property' then
   _log(DEBUG, 'consumoAcumulado: '.. consumoAcumulado)
 
   -- almacenar consumo
+  -- comprobar si es origen
+  -- comprobar si ha cambiado la hora
+  -- comprobar si ha cambiado el día
   setConsumo(consumoAcumulado)
   _log(DEBUG, fibaro:getGlobalValue(globalVarName))
 
   -- actualizar VD
-  updateVirtualDevice(vDId)
+  updateStatus()
 
 end
 --[[----- FIN DE LA EJECUCION ------------------------------------------------]]
