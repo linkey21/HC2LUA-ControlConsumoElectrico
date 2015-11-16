@@ -207,8 +207,9 @@ if (preciokwh > (precioMedioDia * (1 + porcentajeAjusteRecomendacion/100))) then
   iconoRecomendado = iDIconoRecomendadoNO
   textoRecomendacion = 'Esperar'
 end
--- almacenar la recoemendación en la variable global
+-- almacenar la recoemendación y el precio en la variable global
 estadoTab['recomendacion'] = iconoRecomendado
+estadoTab['preciokwh'] = preciokwh
 ctrlEnergia['estado'] = estadoTab
 fibaro:setGlobal(globalVarName, json.encode(ctrlEnergia))
 

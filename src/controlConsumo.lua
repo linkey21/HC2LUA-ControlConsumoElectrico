@@ -182,21 +182,29 @@ if not isVariable(globalVarName) then
 end
 
 -- esperar hasta que la variable global esté inicializada
+_log(DEBUG, 'Esperando reseteo...')
 while not isSetVar(globalVarName, 'VDId') do
   fibaro:sleep(1000)
+  -- si se inicia otra escena esta se suicida
+  if fibaro:countScenes() > 1 then
+    _log(DEBUG, 'terminado por nueva actividad')
+    fibaro:abort()
+  end
 end
 -- obtener el id del VD
+_log(DEBUG, 'Continua la ejecución')
 local VDId
 VDId = isSetVar(globalVarName, 'VDId')
 
 --[[ CADA CICLO DE FACTUARCION -----------------------------------------------]]
 local fechaFinCiclo
-fechaFinCiclo = fibaro:get(VDId, 'ui.diaInicioCiclo.value'))
+fechaFinCiclo = fibaro:get(VDId, 'ui.diaInicioCiclo.value')
 _log(DEBUG, 'Próximo inicio de ciclo: '..fechaFinCiclo)
 -- ajustar cambio de año
 if (fechaFinCiclo == os.date('%d/%m/%y')) then
   -- invocar al boton de reseteo de datos iniciar ciclo
   fibaro:call(VDId, "pressButton", "5")
+  -- esperar para que el ciclo se reinicie
   fibaro:sleep(5000)
   _log(DEBUG, 'próximo reinicio de ciclo: '..
    fibaro:get(VDId, 'ui.diaInicioCiclo.value'))
@@ -207,8 +215,14 @@ end
 local precioActual
 fibaro:call(VDId, "pressButton", "6")
 --esperar hasta obtener el precio
-while not isSetVar(globalVarName, 'precio') do
+_log(DEBUG, 'Esperando precio...')
+while not isSetVar(globalVarName, 'preciokwh') do
   fibaro:sleep(1000)
+  -- si se inicia otra escena esta se suicida
+  if fibaro:countScenes() > 1 then
+    _log(DEBUG, 'terminado por nueva actividad')
+    fibaro:abort()
+  end
 end
 precioActual = isSetVar(globalVarName, 'precio')
 
@@ -235,14 +249,13 @@ if trigger['type'] == 'property' then
   _log(DEBUG, 'consumoAcumulado: '.. consumoAcumulado)
 
   -- almacenar consumo
-  -- comprobar si es origen
-  -- comprobar si ha cambiado la hora
-  -- comprobar si ha cambiado el día
   setConsumo(consumoAcumulado)
   _log(DEBUG, fibaro:getGlobalValue(globalVarName))
 
-  -- actualizar VD
-  updateStatus()
+  -- leer lecturas de consumo de la vb
+  ctrlEnergia = json.decode(fibaro:getGlobalValue(globalVarName))
+  local consumoTab = ctrlEnergia.consumo
+  _log(DEBUG, 'Lecturas acumuladas: '..#consumoTab)
 
 end
 --[[----- FIN DE LA EJECUCION ------------------------------------------------]]
