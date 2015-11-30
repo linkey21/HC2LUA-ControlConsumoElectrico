@@ -45,7 +45,8 @@ end
 
 --[[----------------------------------------------------------------------------
 isVariable(varName)
-	comprueba si existe una variable global dada(varName)
+	comprueba si existe una variable global dada(varName), si no exite intentar
+  creala y compruba si se ha creado, devuelve true si existe o se ha creado
 --]]
 function isVariable(varName)
   -- comprobar si existe
@@ -61,8 +62,9 @@ isSetVar(varName)
 --]]
 function isSetVar(varName, value)
   -- comprobar si esta vacia
-  local valor, controlConsumo
-  valor = fibaro:getGlobalValue(varName)
+  local valor, controlConsumo, timestamp
+  valor, timestamp = fibaro:getGlobal(varName)
+  if (not valor) or (timestamp == 0) then return false end
   controlConsumo = json.decode(valor)
   if (not controlConsumo['estado'][value]) or
    (controlConsumo['estado'][value] == 0) then
@@ -105,8 +107,7 @@ function getConsumo(stampIni, stampFin)
   -- se devuelve el total del ambito indicado (stampIni, stampFin)
   for key, value in pairs(consumoTab) do
     local stampActual; stampActual = value.timeStamp
-      if stampActual > stampIni and stampActual <= stampFin and
-        stampActual ~= stampOrigen then
+      if stampActual > stampIni and stampActual <= stampFin then
         consumo = consumo + value.kWh
       end
   end
@@ -154,9 +155,25 @@ function setConsumo(valor, timeStamp)
        consumoOrigen = {timeStamp = timeStamp, kWh = valor}}
       consumo = {} --; consumo[#consumo + 1] = {}
     else -- guardar el consumo como consumo acumulado
-      -- TODO comprobar si es otra hora
+
       -- tabla de consumos
       consumo = ctrlEnergia['consumo']
+
+
+      -- tomar el último timeStamp acumulado
+      for key, value in pairs(consumo) do
+        local stampAnterior, stampActual
+        if value['timeStamp'] then
+          stampActual = value['timeStamp']
+          if stampActual > stampAnterior then stampAnterior = stampActual end
+        end
+      end
+      -- comprobar si la hora del timestamp que se va a guardar ha cambiado
+      if os.date('%H', timeStamp) ~= os.date('%H', stampAnterior) then
+        -- acumular los consumos de la hora anterior en un único registro
+        consumo = compactarConsumos(consumo, timeStamp, stampAnterior, '%H')
+      end
+
       -- tabla de estado
       estado = ctrlEnergia['estado']
       -- guardar la diferencia consumo en la tabla de consumo
@@ -173,17 +190,43 @@ function setConsumo(valor, timeStamp)
   return 0
 end
 
---[[----- COMIENZA LA EJECUCION ----------------------------------------------]]
-_log(DEBUG, 'COMIENZA LA EJECUCION')
--- la variable global no existe
-if not isVariable(globalVarName) then
-  fibaro:debug('Declarar variable global '..globalVarName)
-  fibaro:abort()
+--[[----------------------------------------------------------------------------
+compactarConsumos(timestamp, stampAnterior)
+	compacta la tabla de consumos
+--]]
+function compactarConsumos(consumo, timeStamp, stampAnterior, clave)
+  local horaAnteior, diaAnterior, diaActual, kWhAcumulado, stampAcumulado
+  -- compactar los consumos de la hora anteriror
+  horaAnteior = os.date('%H', stampAnterior)
+  -- recorer la tabla de consumos
+  kWhAcumulado = 0
+  for key value in pairs(consumo) do
+    -- comprobar si el consumo es de la hora anteriror
+    if os.date(clave, consumo['timeStamp']) == horaAnteior then
+      -- acumular kWh y guardar timestamp
+      kWhAcumulado = kWhAcumulado + consumo['kWh']
+      stampAcumulado = consumo['timeStamp']
+      -- eliminar registro acumulado
+      table.remove(consumo, key)
+    end
+  end
+  -- guardar el registro del consumo acumulado
+  table.insert(consumo, {timeStamp = stampAcumulado, kWh = kWhAcumulado})
+
+  -- comprobar si el día del timestamp que se va a guardar ha cambiado
+  if os.date('%d', timeStamp) ~= os.date('%d', stampAnterior) then
+    -- compactar tabla de consumos
+  end
+
+  return consumo
 end
 
+--[[----- COMIENZA LA EJECUCION ----------------------------------------------]]
+_log(DEBUG, 'COMIENZA LA EJECUCION')
+-- comprobar si existe la variable global y si no crearla
 -- esperar hasta que la variable global esté inicializada
-_log(DEBUG, 'Esperando reseteo...')
 while not isSetVar(globalVarName, 'VDId') do
+  _log(DEBUG, 'Esperando reseteo...')
   fibaro:sleep(1000)
   -- si se inicia otra escena esta se suicida
   if fibaro:countScenes() > 1 then
@@ -192,7 +235,6 @@ while not isSetVar(globalVarName, 'VDId') do
   end
 end
 -- obtener el id del VD
-_log(DEBUG, 'Continua la ejecución')
 local VDId
 VDId = isSetVar(globalVarName, 'VDId')
 
@@ -215,8 +257,8 @@ end
 local precioActual
 fibaro:call(VDId, "pressButton", "6")
 --esperar hasta obtener el precio
-_log(DEBUG, 'Esperando precio...')
 while not isSetVar(globalVarName, 'preciokwh') do
+  _log(DEBUG, 'Esperando precio...')
   fibaro:sleep(1000)
   -- si se inicia otra escena esta se suicida
   if fibaro:countScenes() > 1 then
@@ -250,13 +292,12 @@ if trigger['type'] == 'property' then
 
   -- almacenar consumo
   setConsumo(consumoAcumulado)
-  _log(DEBUG, fibaro:getGlobalValue(globalVarName))
+  --_log(DEBUG, fibaro:getGlobalValue(globalVarName))
 
-  -- leer lecturas de consumo de la vb
+  -- leer lecturas de consumo acumuladas en la variableGlobal
   ctrlEnergia = json.decode(fibaro:getGlobalValue(globalVarName))
   local consumoTab = ctrlEnergia.consumo
   _log(DEBUG, 'Lecturas acumuladas: '..#consumoTab)
-
 end
 --[[----- FIN DE LA EJECUCION ------------------------------------------------]]
 

@@ -84,7 +84,7 @@ function getPVPC(tipo)
   return 1, 'dia/hora no corresponde con el actual'
 end
 
---[[-----------------------------------------------------------------------------
+--[[----------------------------------------------------------------------------
 normalizaPVPCTab(precioTab)
   -- recive una tabla de precio de cada hora representados por el indice y
   -- devuelve una tabla con el formato {clave, precio} con los precios del tipo
@@ -132,12 +132,12 @@ function getConsumo(stampIni, stampFin)
   -- si no se indica el final se toma el momento actual
   if not stampFin then stampFin = os.time() end
   -- se devuelve el total del ambito indicado (stampIni, stampFin)
+  local stampActual
   for key, value in pairs(consumoTab) do
-    local stampActual; stampActual = value.timeStamp
-      if stampActual > stampIni and stampActual <= stampFin and
-        stampActual ~= stampOrigen then
-        consumo = consumo + value.kWh
-      end
+    stampActual = value.timeStamp
+    if stampActual > stampIni and stampActual <= stampFin then
+      consumo = consumo + value.kWh
+    end
   end
   return consumo
 end
