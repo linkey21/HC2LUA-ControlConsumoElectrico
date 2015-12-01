@@ -17,9 +17,10 @@
 --[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
 local release = {name='ControlConsumoElect.controlConsumo', ver=2, mayor=0,
  minor=0}
-globalVarName = 'consumoV2'    -- nombre de variable global almacen consumo
-OFF=1;INFO=2;DEBUG=3                -- referencia para el log
-nivelLog = DEBUG                    -- nivel de log
+globalVarName = 'consumoV2' -- nombre de variable global almacen consumo
+compactaHora = 48           -- 48h
+OFF=1;INFO=2;DEBUG=3        -- referencia para el log
+nivelLog = DEBUG            -- nivel de log
 --[[----- FIN CONFIGURACION AVANZADA -----------------------------------------]]
 
 --[[
@@ -44,33 +45,25 @@ function redondea(num, idp)
 end
 
 --[[----------------------------------------------------------------------------
-isVariable(varName)
-	comprueba si existe una variable global dada(varName), si no exite intentar
-  creala y compruba si se ha creado, devuelve true si existe o se ha creado
---]]
-function isVariable(varName)
-  -- comprobar si existe
-  local valor, timestamp = fibaro:getGlobal(varName)
-  if (valor and  timestamp > 0) then return true end
-  return false
-end
-
---[[----------------------------------------------------------------------------
 isSetVar(varName)
-	comprueba si un valor de estado exite en variable global dada(varName)
-  y si lo está, devuelve su valor
+	comprueba si exite la variableGlobal y si contiene un valor de estado y
+  devuelve su valor
 --]]
 function isSetVar(varName, value)
   -- comprobar si esta vacia
-  local valor, controlConsumo, timestamp
+  local valor, ctrlConsumo, timestamp
   valor, timestamp = fibaro:getGlobal(varName)
+  -- si no hay variableGlobal false
   if (not valor) or (timestamp == 0) then return false end
-  controlConsumo = json.decode(valor)
-  if (not controlConsumo['estado'][value]) or
-   (controlConsumo['estado'][value] == 0) then
+  -- intentar recuperar la tabla de consumos desde la variableGlobal
+  ctrlConsumo = json.decode(valor)
+  -- si la variable aún ha actualizado el valor [value]
+  if (not ctrlConsumo) or (not ctrlConsumo['estado'][value]) or
+   (ctrlConsumo['estado'][value] == 0) then
     return false
   end
-  return controlConsumo['estado'][value]
+  -- retornar el valor de [value]
+  return ctrlConsumo['estado'][value]
 end
 
 --[[----------------------------------------------------------------------------
@@ -161,20 +154,21 @@ function setConsumo(valor, timeStamp)
       -- tabla de estado
       estado = ctrlEnergia['estado']
 
-      -- obtener el último consumo (timeStamp) acumulado
-      local stampAnterior, stampActual
-      stampAnterior = 0
-      for key, value in pairs(consumo) do
-        if value['timeStamp'] then
-          stampActual = value['timeStamp']
-          if stampActual > stampAnterior then stampAnterior = stampActual end
-        end
-      end
-      -- comprobar si la hora del timestamp que se va a guardar ha cambiado
-      if os.date('%H', timeStamp) ~= os.date('%H', stampAnterior) then
-        -- compactar la tabla de consumos
-        consumo = compactarConsumos(consumo, timeStamp, stampAnterior, '%H')
-      end
+      -- -- obtener el último consumo (timeStamp) acumulado
+      -- local stampAnterior, stampActual
+      -- stampAnterior = 0
+      -- for key, value in pairs(consumo) do
+      --   if value['timeStamp'] then
+      --     stampActual = value['timeStamp']
+      --     if stampActual > stampAnterior then stampAnterior = stampActual end
+      --   end
+      -- end
+      -- -- comprobar si la hora del timestamp que se va a guardar ha cambiado
+      -- if os.date('%H', timeStamp) ~= os.date('%H', stampAnterior) then
+      --   -- compactar la tabla de consumos
+      --   consumo = compactarConsumos(consumo, timeStamp, stampAnterior, '%H')
+      -- end
+      consumo = compactarConsumos(consumo, timeStamp)
 
       -- guardar la diferencia de consumo en la tabla de consumo
       consumo[#consumo + 1] = {timeStamp = timeStamp, kWh = valor}
@@ -187,42 +181,40 @@ function setConsumo(valor, timeStamp)
   ctrlEnergia['estado'] = estado
   -- guardar en la variable global
   fibaro:setGlobal(globalVarName, json.encode(ctrlEnergia))
-  _log(DEBUG, 'fibaro:setGlobal '..globalVarName)
-  _log(DEBUG, os.date('%d-%m-%Y-%H:%M:%S', consumo[#consumo].timeStamp)..' '..
+  _log(DEBUG, 'Consumo almacenado: '..
+   os.date('%d/%m/%Y-%H:%M:%S', consumo[#consumo].timeStamp)..' '..
    consumo[#consumo].kWh..'kWh')
   return 0
 end
 
 --[[----------------------------------------------------------------------------
-compactarConsumos(timestamp, stampAnterior)
-	compacta la tabla de consumos
+compactarConsumos(consumo, timeStamp)
+	compacta la tabla de consumos agrupando todos los registro anteriores a
+  compactaHora horas
 --]]
-function compactarConsumos(consumo, timeStamp, stampAnterior, clave)
-  _log(DEBUG, 'Compactando '..clave)
-  local horaAnteior, diaAnterior, diaActual, kWhAcumulado, stampAcumulado
-  -- compactar los consumos de la clave anteriror
-  horaAnteior = os.date(clave, stampAnterior)
-  -- recorer la tabla de consumos
+function compactarConsumos(consumo, timeStamp)
+  _log(DEBUG, 'Compactando tabla de consumos...')
+  local stampAcumulado, kWhAcumulado
   kWhAcumulado = 0
-  for key, value in pairs(consumo) do
-    -- comprobar si el consumo es de la hora anteriror
-    if os.date(clave, value['timeStamp']) == horaAnteior then
+  -- Borrar elementos del array es un problema clásico  que se puede resolver
+  -- fácilmente con un bucle hacia atrás
+  for key = #consumo, 1, -1 do
+    local value = consumo[key]
+    if value['timeStamp'] and
+     value.timeStamp < (timeStamp - compactaHora * 3600) then
       -- acumular kWh y guardar timestamp
       kWhAcumulado = kWhAcumulado + value['kWh']
       stampAcumulado = value['timeStamp']
       -- eliminar registro acumulado
+      _log(DEBUG, 'eliminando registro')
       table.remove(consumo, key)
     end
   end
   -- guardar el registro del consumo acumulado
-  table.insert(consumo, {timeStamp = stampAcumulado, kWh = kWhAcumulado})
-
-  --si la clave es '%H' se comprueba si ha cambiado tambien el día
-  if clave == '%H' and
-   (os.date('%d', timeStamp) ~= os.date('%d', stampAnterior)) then
-    consumo = compactarConsumos(consumo, timeStamp, stampAnterior, '%d')
+  if kWhAcumulado > 0 then
+    table.insert(consumo, {timeStamp = stampAcumulado, kWh = kWhAcumulado})
   end
-
+  -- retornar tabla de consumos compactada
   return consumo
 end
 
