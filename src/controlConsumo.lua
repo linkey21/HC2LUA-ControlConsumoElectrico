@@ -162,9 +162,9 @@ function setConsumo(valor, timeStamp)
       estado = ctrlEnergia['estado']
 
       -- obtener el último consumo (timeStamp) acumulado
+      local stampAnterior, stampActual
+      stampAnterior = 0
       for key, value in pairs(consumo) do
-        local stampAnterior, stampActual
-        stampAnterior = 0
         if value['timeStamp'] then
           stampActual = value['timeStamp']
           if stampActual > stampAnterior then stampAnterior = stampActual end
@@ -187,6 +187,9 @@ function setConsumo(valor, timeStamp)
   ctrlEnergia['estado'] = estado
   -- guardar en la variable global
   fibaro:setGlobal(globalVarName, json.encode(ctrlEnergia))
+  _log(DEBUG, 'fibaro:setGlobal '..globalVarName)
+  _log(DEBUG, os.date('%d-%m-%Y-%H:%M:%S', consumo[#consumo].timeStamp)..' '..
+   consumo[#consumo].kWh..'kWh')
   return 0
 end
 
@@ -195,6 +198,7 @@ compactarConsumos(timestamp, stampAnterior)
 	compacta la tabla de consumos
 --]]
 function compactarConsumos(consumo, timeStamp, stampAnterior, clave)
+  _log(DEBUG, 'Compactando '..clave)
   local horaAnteior, diaAnterior, diaActual, kWhAcumulado, stampAcumulado
   -- compactar los consumos de la clave anteriror
   horaAnteior = os.date(clave, stampAnterior)
@@ -202,10 +206,10 @@ function compactarConsumos(consumo, timeStamp, stampAnterior, clave)
   kWhAcumulado = 0
   for key, value in pairs(consumo) do
     -- comprobar si el consumo es de la hora anteriror
-    if os.date(clave, consumo['timeStamp']) == horaAnteior then
+    if os.date(clave, value['timeStamp']) == horaAnteior then
       -- acumular kWh y guardar timestamp
-      kWhAcumulado = kWhAcumulado + consumo['kWh']
-      stampAcumulado = consumo['timeStamp']
+      kWhAcumulado = kWhAcumulado + value['kWh']
+      stampAcumulado = value['timeStamp']
       -- eliminar registro acumulado
       table.remove(consumo, key)
     end
@@ -235,6 +239,12 @@ while not isSetVar(globalVarName, 'VDId') do
     fibaro:abort()
   end
 end
+
+-- si hay otra escena en ejecución esperar a que termine
+while fibaro:countScenes() > 1 do
+  _log(DEBUG, 'Esperando por otra anotación')
+end
+
 -- obtener el id del VD
 local VDId
 VDId = isSetVar(globalVarName, 'VDId')
