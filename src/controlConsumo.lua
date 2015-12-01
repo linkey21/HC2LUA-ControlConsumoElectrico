@@ -158,11 +158,13 @@ function setConsumo(valor, timeStamp)
 
       -- tabla de consumos
       consumo = ctrlEnergia['consumo']
+      -- tabla de estado
+      estado = ctrlEnergia['estado']
 
-
-      -- tomar el último timeStamp acumulado
+      -- obtener el último consumo (timeStamp) acumulado
       for key, value in pairs(consumo) do
         local stampAnterior, stampActual
+        stampAnterior = 0
         if value['timeStamp'] then
           stampActual = value['timeStamp']
           if stampActual > stampAnterior then stampAnterior = stampActual end
@@ -170,13 +172,11 @@ function setConsumo(valor, timeStamp)
       end
       -- comprobar si la hora del timestamp que se va a guardar ha cambiado
       if os.date('%H', timeStamp) ~= os.date('%H', stampAnterior) then
-        -- acumular los consumos de la hora anterior en un único registro
+        -- compactar la tabla de consumos
         consumo = compactarConsumos(consumo, timeStamp, stampAnterior, '%H')
       end
 
-      -- tabla de estado
-      estado = ctrlEnergia['estado']
-      -- guardar la diferencia consumo en la tabla de consumo
+      -- guardar la diferencia de consumo en la tabla de consumo
       consumo[#consumo + 1] = {timeStamp = timeStamp, kWh = valor}
       -- guardar la potencia media en el estado
       estado['energia'] = getEnergia(valor, timeStamp)
@@ -196,11 +196,11 @@ compactarConsumos(timestamp, stampAnterior)
 --]]
 function compactarConsumos(consumo, timeStamp, stampAnterior, clave)
   local horaAnteior, diaAnterior, diaActual, kWhAcumulado, stampAcumulado
-  -- compactar los consumos de la hora anteriror
-  horaAnteior = os.date('%H', stampAnterior)
+  -- compactar los consumos de la clave anteriror
+  horaAnteior = os.date(clave, stampAnterior)
   -- recorer la tabla de consumos
   kWhAcumulado = 0
-  for key value in pairs(consumo) do
+  for key, value in pairs(consumo) do
     -- comprobar si el consumo es de la hora anteriror
     if os.date(clave, consumo['timeStamp']) == horaAnteior then
       -- acumular kWh y guardar timestamp
@@ -213,9 +213,10 @@ function compactarConsumos(consumo, timeStamp, stampAnterior, clave)
   -- guardar el registro del consumo acumulado
   table.insert(consumo, {timeStamp = stampAcumulado, kWh = kWhAcumulado})
 
-  -- comprobar si el día del timestamp que se va a guardar ha cambiado
-  if os.date('%d', timeStamp) ~= os.date('%d', stampAnterior) then
-    -- compactar tabla de consumos
+  --si la clave es '%H' se comprueba si ha cambiado tambien el día
+  if clave == '%H' and
+   (os.date('%d', timeStamp) ~= os.date('%d', stampAnterior)) then
+    consumo = compactarConsumos(consumo, timeStamp, stampAnterior, '%d')
   end
 
   return consumo
