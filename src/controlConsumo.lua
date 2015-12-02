@@ -151,25 +151,12 @@ function setConsumo(valor, timeStamp)
 
       -- tabla de consumos
       consumo = ctrlEnergia['consumo']
+      _log(DEBUG, #consumo..' registros leidos')
       -- tabla de estado
       estado = ctrlEnergia['estado']
-
-      -- -- obtener el último consumo (timeStamp) acumulado
-      -- local stampAnterior, stampActual
-      -- stampAnterior = 0
-      -- for key, value in pairs(consumo) do
-      --   if value['timeStamp'] then
-      --     stampActual = value['timeStamp']
-      --     if stampActual > stampAnterior then stampAnterior = stampActual end
-      --   end
-      -- end
-      -- -- comprobar si la hora del timestamp que se va a guardar ha cambiado
-      -- if os.date('%H', timeStamp) ~= os.date('%H', stampAnterior) then
-      --   -- compactar la tabla de consumos
-      --   consumo = compactarConsumos(consumo, timeStamp, stampAnterior, '%H')
-      -- end
+      -- compactar tabla de consumos
       consumo = compactarConsumos(consumo, timeStamp)
-
+      _log(DEBUG, #consumo..' registros despues de compactar')
       -- guardar la diferencia de consumo en la tabla de consumo
       consumo[#consumo + 1] = {timeStamp = timeStamp, kWh = valor}
       -- guardar la potencia media en el estado
@@ -180,10 +167,12 @@ function setConsumo(valor, timeStamp)
   ctrlEnergia['consumo'] = consumo
   ctrlEnergia['estado'] = estado
   -- guardar en la variable global
+  _log(DEBUG, #consumo..' registros antes de guardar')
+  _log(DEBUG, json.encode(ctrlEnergia))
   fibaro:setGlobal(globalVarName, json.encode(ctrlEnergia))
   _log(DEBUG, 'Consumo almacenado: '..
-   os.date('%d/%m/%Y-%H:%M:%S', consumo[#consumo].timeStamp)..' '..
-   consumo[#consumo].kWh..'kWh')
+   os.date('%d/%m/%Y-%H:%M:%S',  ctrlEnergia['consumo'][#consumo].timeStamp)..
+   ' '..ctrlEnergia['consumo'][#consumo].kWh..'kWh')
   return 0
 end
 
@@ -206,7 +195,7 @@ function compactarConsumos(consumo, timeStamp)
       kWhAcumulado = kWhAcumulado + value['kWh']
       stampAcumulado = value['timeStamp']
       -- eliminar registro acumulado
-      _log(DEBUG, 'eliminando registro')
+      _log(DEBUG, 'registro compactado')
       table.remove(consumo, key)
     end
   end
@@ -272,7 +261,6 @@ end
 precioActual = isSetVar(globalVarName, 'precio')
 
 --[[ GUARDAR CONSUMO ACUMULADO -----------------------------------------------]]
-
 -- averiguar ID del dispositivo que lanza la escena
 local trigger = fibaro:getSourceTrigger()
 -- si se inicia por cambio de consumo
@@ -299,8 +287,11 @@ if trigger['type'] == 'property' then
 
   -- leer lecturas de consumo acumuladas en la variableGlobal
   ctrlEnergia = json.decode(fibaro:getGlobalValue(globalVarName))
-  local consumoTab = ctrlEnergia.consumo
-  _log(DEBUG, 'Lecturas acumuladas: '..#consumoTab)
+  local consumo = ctrlEnergia.consumo
+  _log(DEBUG, 'Lecturas acumuladas: '..#consumo)
+  _log(DEBUG, 'Último consumo: '..
+   os.date('%d/%m/%Y-%H:%M:%S',  ctrlEnergia['consumo'][#consumo].timeStamp)..
+   ' '..ctrlEnergia['consumo'][#consumo].kWh..'kWh')
 end
 --[[----- FIN DE LA EJECUCION ------------------------------------------------]]
 
