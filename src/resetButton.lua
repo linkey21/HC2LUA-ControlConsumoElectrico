@@ -15,8 +15,8 @@ propertyName = 'value'		-- propiedad del dispositivo para recuperar la energia
 local release = {name='ControlConsumoElect.resetButton', ver=0, mayor=0,
  minor=4}
 local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
-globalVarName = 'consumoV2'    -- nombre de variable global almacen consumo
-tcpHC2 =  false                     -- objeto que representa una conexion TCP
+cceEstado = 'cceEstado'     -- nombre variable global para almacenar el estado
+cceConsumo = 'cceConsumo'   -- nombre variable global para almacenar consumo
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log
 nivelLog = DEBUG                    -- nivel de log
 --[[----- FIN CONFIGURACION AVANZADA -----------------------------------------]]
@@ -40,7 +40,7 @@ isVariable(varName)
 function isVariable(varName)
   -- comprobar si existe
   local valor, timestamp = fibaro:getGlobal(varName)
-  if (valor and  timestamp > 0) then return true end
+  if (valor and timestamp > 0) then return true end
   return false
 end
 
@@ -49,39 +49,52 @@ resetConsumo()
 	inicializa la tabla de consumos
 --]]
 function resetConsumo()
-  -- comprobar si exite la variable global para almacenar consumos
-  if not isVariable(globalVarName) then
+  -- si no exite la variable global para almacenar consumos
+  if not isVariable(cceConsumo) then
     -- intentar crear la variableGlobal
-    local json = '{"name":"'..globalVarName..'", "isEnum":0}'
+    local json = '{"name":"'..cceConsumo..'", "isEnum":0}'
     HC2 = Net.FHttp("127.0.0.1", 11111)
     HC2:POST("/api/globalVariables", json)
     fibaro:sleep(1000)
     -- comprobar que se ha creado la variableGlobal
-    if not isVariable(globalVarName) then
-      _log(DEBUG, 'No se pudo declarar variable global '..globalVarName)
+    if not isVariable(cceConsumo) then
+      _log(DEBUG, 'No se pudo declarar variable global '..cceConsumo)
       fibaro:abort()
     end
   end
-  -- vaciar variable global
-  local ctrlEnergia, consumo, estado
-  -- crear una tabla vacia
-  ctrlEnergia = {}
-  --estado = {recomendacion = 0, energia = 0,
-  -- consumoOrigen = {timeStamp = os.time(), kWh = 0}}
-  consumo = {}
-  estado= {}
-  -- almacenar consumo actual como origen
-  estado['consumoOrigen'].kWh =
-    tonumber(fibaro:getValue(energyDev, propertyName))
-  estado['consumoOrigen'].timeStamp = os.time()
+  -- si no exite la variable global para almacenar estado
+  if not isVariable(cceEstado) then
+    -- intentar crear la variableGlobal
+    local json = '{"name":"'..cceEstado..'", "isEnum":0}'
+    HC2 = Net.FHttp("127.0.0.1", 11111)
+    HC2:POST("/api/globalVariables", json)
+    fibaro:sleep(1000)
+    -- comprobar que se ha creado la variableGlobal
+    if not isVariable(cceEstado) then
+      _log(DEBUG, 'No se pudo declarar variable global '..cceEstado)
+      fibaro:abort()
+    end
+  end
+
+  -- vaciar variables globales
+  local tablaConsumo, tablaEstado
+  -- crear una tablas vacías
+  tablaConsumo = {}
+  tablaEstado = {consumoOrigen = {}}
+
+  -- almacenar el consumoOrigen
+  local consumo, timeStamp = fibaro:get(energyDev, propertyName)
+  tablaEstado['consumoOrigen'].kWh = tonumber(consumo)
+  tablaEstado['consumoOrigen'].timeStamp = tonumber(timeStamp)
+
   -- almacenar el id del VD en el estado para saber que ha sido iniciada
-  estado['VDId'] = _selfId
-  -- almacenar en la tabla de control de energia el estado y el consumo
-  ctrlEnergia['consumo'] = consumo
-  ctrlEnergia['estado'] = estado
-  -- guardar en la variable global
-  fibaro:setGlobal(globalVarName, json.encode(ctrlEnergia))
-  return ctrlEnergia
+  tablaEstado['VDId'] = _selfId
+
+  -- guardar las tablas en la variables globales
+  fibaro:setGlobal(cceConsumo, json.encode(tablaConsumo))
+  fibaro:setGlobal(cceEstado, json.encode(tablaEstado))
+
+  return tablaEstado, tablaConsumo
 end
 
 --[[----------------------------------------------------------------------------
@@ -109,15 +122,14 @@ end
 _log(INFO, release['name']..
 ' ver '..release['ver']..'.'..release['mayor']..'.'..release['minor'])
 -- resetear y recuperar la tabla de consumo
-ctrlEnergia = resetConsumo()
-local estadoTab
-estadoTab = ctrlEnergia['estado']
+local tablaEstado, tablaConsumo
+tablaEstado, tablaConsumo = resetConsumo()
 
 -- proponer como dia de inicio de ciclo el mismo dia del mes siguiente a la
 -- fecha origen de ciclo actual
 local dia, mes, anno, dias, segs, fecha, stamp
 -- obtener fecha origen
-stamp = estadoTab['consumoOrigen'].timeStamp
+stamp = os.time()
 -- otener dia, mes y año de la fecha origen
 dia = tonumber(os.date('%d', stamp))
 mes = tonumber(os.date('%m', stamp))
@@ -131,13 +143,15 @@ fecha = os.date('%d/%m/%y', os.time({month = mes, day = dia,
  year = anno}) + segs)
  -- refrescar la etiqueta diaInicioCiclo
 fibaro:call(_selfId, 'setProperty', 'ui.diaInicioCiclo.value', fecha)
-_log(DEBUG, fecha)
+_log(DEBUG, 'Fecha próximo ciclo: '..fecha)
 
 -- invocar al boton de actualizacion de datos
 fibaro:call(_selfId, "pressButton", "6")
 --[[----- FIN DE LA EJECUCION ------------------------------------------------]]
 
 --[[----- INFORME DE RESULTADOS ----------------------------------------------]]
-_log(INFO, fibaro:getGlobalValue(globalVarName))
+_log(DEBUG, cceConsumo..' '..cceEstado)
+_log(INFO, cceConsumo..': '..fibaro:getGlobalValue(cceConsumo))
+_log(INFO, cceEstado..': '..fibaro:getGlobalValue(cceEstado))
 --[[----- FIN INFORME DE RESULTADOS ------------------------------------------]]
 --[[--------------------------------------------------------------------------]]

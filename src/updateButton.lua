@@ -24,7 +24,8 @@ local iDIconoRecomendadoNO = 1055                 -- icono NO recomendar consumo
 local release = {name='ControlConsumoElect.updateButton', ver=0, mayor=0,
  minor=4}
 local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
-globalVarName = 'consumoV2'    -- nombre de variable global almacen consumo
+cceEstado = 'cceEstado'     -- nombre variable global para almacenar el estado
+cceConsumo = 'cceConsumo'   -- nombre variable global para almacenar consumos
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log
 nivelLog = DEBUG                    -- nivel de log
 --[[----- FIN CONFIGURACION AVANZADA -----------------------------------------]]
@@ -105,10 +106,12 @@ getConsumo(stampIni, stampFin)
 	devuelve el consumo desde el momento inicado hasta la actualidad o stampFin
 --]]
 function getConsumo(stampIni, stampFin)
-  local consumoTab, consumo, ctrlEnergia
-  -- intentar recuperar la tabla de control de energia desde la variable
-  ctrlEnergia = json.decode(fibaro:getGlobalValue(globalVarName))
-  consumoTab = ctrlEnergia['consumo']
+  _log(DEBUG, '1.0')
+  local tablaEstado, tablaConsumo, consumo
+  -- recuperar la tabla de consumos
+  tablaConsumo = json.decode(fibaro:getGlobalValue(cceConsumo))
+  -- recuperar la tabla de estado
+  tablaEstado = json.decode(fibaro:getGlobalValue(cceEstado))
   consumo = 0
   -- si no se indica el principio del ambito
   if not stampIni then
@@ -117,7 +120,7 @@ function getConsumo(stampIni, stampFin)
     -- si no hay medidas de consumo hay un error
     stampAnterior = 0
     -- tomar el último timeStamp
-    for key, value in pairs(consumoTab) do
+    for key, value in pairs(tablaConsumo) do
       if value['kWh'] then consumo = consumo + value['kWh'] end
       if value['timeStamp'] then
         stampActual = value['timeStamp']
@@ -127,17 +130,16 @@ function getConsumo(stampIni, stampFin)
     return consumo, stampAnterior
   elseif stampIni == 0 then -- si se indica 0 como inicio del ambito
     -- devolver el consumo origen
-    return  ctrlEnergia['estado']['consumoOrigen'].kWh
+    return  tablaEstado['consumoOrigen'].kWh
   end
   -- si no se indica el final se toma el momento actual
   if not stampFin then stampFin = os.time() end
   -- se devuelve el total del ambito indicado (stampIni, stampFin)
-  local stampActual
-  for key, value in pairs(consumoTab) do
-    stampActual = value.timeStamp
-    if stampActual > stampIni and stampActual <= stampFin then
-      consumo = consumo + value.kWh
-    end
+  for key, value in pairs(tablaConsumo) do
+    local stampActual; stampActual = value.timeStamp
+      if stampActual > stampIni and stampActual <= stampFin then
+        consumo = consumo + value.kWh
+      end
   end
   return consumo
 end
@@ -154,6 +156,28 @@ function setEstado(varName, mensaje)
   ctrlEnergia['estado'].mensaje = mensaje
   -- guardar la tabla de control de energía en la variable global
   fibaro:setGlobal(varName, json.encode(ctrlEnergia))
+end
+
+--[[----------------------------------------------------------------------------
+isSetVar(varName)
+	comprueba si exite la variableGlobal y si la tabla que contiene tiene definido
+  un campo determinado devuelve su valor
+--]]
+function isSetVar(varName, campo)
+  -- comprobar si esta vacia
+  local tabla, timestamp
+  tabla, timestamp = fibaro:getGlobal(varName)
+  -- si no hay variableGlobal false
+  if (not tabla) or (timestamp == 0) then return false end
+  -- intentar recuperar la tabla desde la variableGlobal
+  tabla = json.decode(tabla)
+  -- si la variable aún no ha actualizado el campo
+  if (not tabla) or (not tabla[campo]) or
+   (tabla[campo] == 0) or (tabla[campo] == '')  then
+    return false
+  end
+  -- retornar el valor del campo
+  return tabla[campo]
 end
 
 --[[----- INICIAR ------------------------------------------------------------]]
@@ -200,29 +224,33 @@ if (preciokwh > (precioMedioDia * (1 + porcentajeAjusteRecomendacion/100))) then
   textoRecomendacion = 'Esperar'
 end
 
--- recuperar las tablas de consumo y estado
-local ctrlEnergia, estadoTab
-ctrlEnergia = fibaro:getGlobal(globalVarName)
-ctrlEnergia = json.decode(ctrlEnergia)
-estadoTab = ctrlEnergia['estado']
-estadoTab['recomendacion'] = iconoRecomendado
-estadoTab['preciokwh'] = preciokwh
-ctrlEnergia['estado'] = estadoTab
--- almacenar la recomendación y el precio en la variable global
-fibaro:setGlobal(globalVarName, json.encode(ctrlEnergia))
+-- recuperar la tabla de estado
+local tablaEstado = json.decode(fibaro:getGlobalValue(cceEstado))
+-- guardar recomendación y precio
+tablaEstado['recomendacion'] = iconoRecomendado
+tablaEstado['preciokwh'] = preciokwh
+-- almacenar en la variable global
+fibaro:setGlobal(cceEstado, json.encode(tablaEstado))
+-- hasta que no hay precio, la escena no anota el consumo y si se trata del
+-- consumo origen no se puede seguir, es por esto que después de anotar  precio,
+-- hay que esperar hasta que se anote el consumo origen
+ while not isSetVar(cceEstado, consumoOrigen) do
+   _log(INFO, 'Esperando primera lectura..')
+   fibaro:sleep(1000)
+ end
 
 _log(DEBUG, 'Precio medio día: '..precioMedioDia ..' €/kwh')
 -- refrescar icono recomendacion
 fibaro:call(_selfId, 'setProperty', "currentIcon", iconoRecomendado)
 
 -- obtener consumo origen
-local consumoOrigen
-consumoOrigen = estadoTab['consumoOrigen'].kWh
+local consumoOrigen = tablaEstado['consumoOrigen'].kWh
 -- refrescar etiqueta de consumo origen
 fibaro:call(_selfId, 'setProperty',
  'ui.ActualOrigen.value',tostring(consumoOrigen)..' kWh')
 
 -- comienza el calculo de consumos
+_log(DEBUG, 'comienza el calculo de consumos')
 local consumoActual
 -- calcular consumo acumulado de la ultima hora
 -- restar los segundos de una hora o desde la horaActual:00 ?
