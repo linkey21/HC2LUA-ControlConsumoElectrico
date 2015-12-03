@@ -160,14 +160,6 @@ end
 _log(INFO, release['name']..
 ' ver '..release['ver']..'.'..release['mayor']..'.'..release['minor'])
 
--- recuperar la tabla de consumo
-local ctrlEnergia, consumoTab, estadoTab
-ctrlEnergia = fibaro:getGlobal(globalVarName)
-fibaro:debug(ctrlEnergia)
-ctrlEnergia = json.decode(ctrlEnergia)
-consumoTab = ctrlEnergia['consumo']
-estadoTab = ctrlEnergia['estado']
-
 -- obtener el precio kWh
 local preciokwh = preciokwhmercadolibre -- TODO se puede obtener de una web?.
 local precioMedioDia = 0
@@ -207,10 +199,16 @@ if (preciokwh > (precioMedioDia * (1 + porcentajeAjusteRecomendacion/100))) then
   iconoRecomendado = iDIconoRecomendadoNO
   textoRecomendacion = 'Esperar'
 end
--- almacenar la recoemendación y el precio en la variable global
+
+-- recuperar las tablas de consumo y estado
+local ctrlEnergia, estadoTab
+ctrlEnergia = fibaro:getGlobal(globalVarName)
+ctrlEnergia = json.decode(ctrlEnergia)
+estadoTab = ctrlEnergia['estado']
 estadoTab['recomendacion'] = iconoRecomendado
 estadoTab['preciokwh'] = preciokwh
 ctrlEnergia['estado'] = estadoTab
+-- almacenar la recomendación y el precio en la variable global
 fibaro:setGlobal(globalVarName, json.encode(ctrlEnergia))
 
 _log(DEBUG, 'Precio medio día: '..precioMedioDia ..' €/kwh')

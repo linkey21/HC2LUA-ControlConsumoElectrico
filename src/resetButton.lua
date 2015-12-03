@@ -66,9 +66,10 @@ function resetConsumo()
   local ctrlEnergia, consumo, estado
   -- crear una tabla vacia
   ctrlEnergia = {}
-  estado = {recomendacion = 0, energia = 0,
-   consumoOrigen = {timeStamp = os.time(), kWh = 0}}
+  --estado = {recomendacion = 0, energia = 0,
+  -- consumoOrigen = {timeStamp = os.time(), kWh = 0}}
   consumo = {}
+  estado= {}
   -- almacenar consumo actual como origen
   estado['consumoOrigen'].kWh =
     tonumber(fibaro:getValue(energyDev, propertyName))
@@ -105,8 +106,8 @@ function getDiasMes(mes, anno)
 end
 
 --[[------- INICIA LA EJECUCION ----------------------------------------------]]
---
-
+_log(INFO, release['name']..
+' ver '..release['ver']..'.'..release['mayor']..'.'..release['minor'])
 -- resetear y recuperar la tabla de consumo
 ctrlEnergia = resetConsumo()
 local estadoTab
@@ -137,9 +138,6 @@ fibaro:call(_selfId, "pressButton", "6")
 --[[----- FIN DE LA EJECUCION ------------------------------------------------]]
 
 --[[----- INFORME DE RESULTADOS ----------------------------------------------]]
-_log(INFO, release['name']..
-' ver '..release['ver']..'.'..release['mayor']..'.'..release['minor'])
-
 _log(INFO, fibaro:getGlobalValue(globalVarName))
 --[[----- FIN INFORME DE RESULTADOS ------------------------------------------]]
 --[[--------------------------------------------------------------------------]]
