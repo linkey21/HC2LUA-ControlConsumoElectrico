@@ -6,7 +6,7 @@
 --[[ControlConsumoElect
 	Escena
 	controlConsumo.lua
-	por Antonio Maestre & Manuel Pascual
+	por Manuel Pascual
 ------------------------------------------------------------------------------]]
 
 --[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
@@ -131,13 +131,13 @@ setConsumo(valor, timeStamp)
 function setConsumo(consumo, precioKWh, timeStamp)
   local tablaConsumo, tablaEstado, euroterminoconsumo
   -- calcular el importe
-  euroterminoconsumo = redondea(consumo * precioKWh, 3)
+  euroterminoconsumo = consumo * precioKWh
   -- si no se indica el instante en el que se mide el consumo tomar el actual
   if not timeStamp then timeStamp = os.time() end
   -- guardar el consumo como consumo acumulado
   -- recuperar tabla de consumos
   tablaConsumo = json.decode(fibaro:getGlobalValue(cceConsumo))
-  _log(DEBUG, #consumo..' registros leidos')
+  _log(DEBUG, #tablaConsumo..' registros leidos')
   -- recuperar tabla de estado
   tablaEstado = json.decode(fibaro:getGlobalValue(cceEstado))
   -- compactar tabla de consumos
@@ -232,7 +232,7 @@ local precioActual
 fibaro:call(VDId, "pressButton", "6")
 _log(DEBUG, 'Esperando precio...')
 -- esperar para actualizar el precio
-fibaro:sleep(5000)
+fibaro:sleep(2000)
 precioActual = isSetVar(cceEstado, 'preciokwh')
 if not precioActual then
   _log(INFO, 'ERROR: No se pudo obteber el preciokwh')
@@ -262,18 +262,18 @@ if trigger['type'] == 'property' then
   _log(DEBUG, 'consumoAcumulado: '.. consumoAcumulado)
 
   -- almacenar consumo
-  setConsumo(consumoAcumulado)
-end
---[[----- FIN DE LA EJECUCION ------------------------------------------------]]
+  setConsumo(consumoAcumulado, precioActual)
 
---[[----- INFORME DE RESULTADOS ----------------------------------------------]]
--- leer lecturas de consumo acumuladas en la variableGlobal
-local tablaConsumo = json.decode(fibaro:getGlobalValue(cceConsumo))
-_log(DEBUG, 'Lecturas acumuladas: '..#tablaConsumo)
-if #tablaConsumo > 0 then
-  _log(DEBUG, 'Último consumo: '..
+  --[[----- INFORME DE RESULTADOS ----------------------------------------------]]
+  -- leer lecturas de consumo acumuladas en la variableGlobal
+  local tablaConsumo = json.decode(fibaro:getGlobalValue(cceConsumo))
+  _log(INFO, 'Lecturas acumuladas: '..#tablaConsumo)
+  _log(INFO, 'Último consumo: '..
    os.date('%d/%m/%Y-%H:%M:%S',  tablaConsumo[#tablaConsumo].timeStamp)..' '..
    tablaConsumo[#tablaConsumo].kWh..'kWh')
- end
---[[----- FIN INFORME DE RESULTADOS ------------------------------------------]]
+  --[[----- FIN INFORME DE RESULTADOS ------------------------------------------]]
+
+end
+--[[----- FIN DE LA EJECUCION ------------------------------------------------]]
+_log(DEBUG, '------------ Fin de la ejecución ------------')
 --[[--------------------------------------------------------------------------]]

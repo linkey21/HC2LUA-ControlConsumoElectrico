@@ -83,8 +83,9 @@ function resetConsumo()
   tablaEstado = {consumoOrigen = {}}
 
   -- almacenar el consumoOrigen
-  local consumo, timeStamp = fibaro:get(energyDev, propertyName)
-  tablaEstado['consumoOrigen'].kWh = tonumber(consumo)
+  local timeStamp = tonumber(fibaro:getModificationTime(energyDev,propertyName))
+  local consumo = tonumber(fibaro:getValue(energyDev, propertyName))
+  tablaEstado['consumoOrigen'].kWh = consumo
   tablaEstado['consumoOrigen'].timeStamp = tonumber(timeStamp)
 
   -- almacenar el id del VD en el estado para saber que ha sido iniciada

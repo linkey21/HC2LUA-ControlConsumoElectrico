@@ -106,42 +106,35 @@ getConsumo(stampIni, stampFin)
 	devuelve el consumo desde el momento inicado hasta la actualidad o stampFin
 --]]
 function getConsumo(stampIni, stampFin)
-  _log(DEBUG, '1.0')
-  local tablaEstado, tablaConsumo, consumo
+  local tablaEstado, tablaConsumo, consumo, importeAcumulado
   -- recuperar la tabla de consumos
   tablaConsumo = json.decode(fibaro:getGlobalValue(cceConsumo))
   -- recuperar la tabla de estado
   tablaEstado = json.decode(fibaro:getGlobalValue(cceEstado))
-  consumo = 0
+  consumo = 0; importe = 0
   -- si no se indica el principio del ambito
   if not stampIni then
-    -- se devuelve el total y el último timeStamp
-    local stampAnterior, stampActual
-    -- si no hay medidas de consumo hay un error
-    stampAnterior = 0
-    -- tomar el último timeStamp
+    -- se devuelve el total y el importe
     for key, value in pairs(tablaConsumo) do
       if value['kWh'] then consumo = consumo + value['kWh'] end
-      if value['timeStamp'] then
-        stampActual = value['timeStamp']
-        if stampActual > stampAnterior then stampAnterior = stampActual end
-      end
+      if value['EUR'] then importe = importe + value['EUR'] end
     end
-    return consumo, stampAnterior
+    return consumo, importe
   elseif stampIni == 0 then -- si se indica 0 como inicio del ambito
     -- devolver el consumo origen
     return  tablaEstado['consumoOrigen'].kWh
   end
   -- si no se indica el final se toma el momento actual
   if not stampFin then stampFin = os.time() end
-  -- se devuelve el total del ambito indicado (stampIni, stampFin)
+  -- se devuelve el total del ambito indicado (stampIni, stampFin) e importe
   for key, value in pairs(tablaConsumo) do
-    local stampActual; stampActual = value.timeStamp
-      if stampActual > stampIni and stampActual <= stampFin then
-        consumo = consumo + value.kWh
-      end
+    local stampActual = value.timeStamp
+    if stampActual > stampIni and stampActual <= stampFin then
+      consumo = consumo + value.kWh
+      importe = importe + value.EUR
+    end
   end
-  return consumo
+  return consumo, importe
 end
 
 --[[----------------------------------------------------------------------------
@@ -149,35 +142,13 @@ setEstado(varName, mensaje))
 	configura el estado del dispositivo virtual
 --]]
 function setEstado(varName, mensaje)
-  local ctrlEnergia
+  local tablaEstado
   -- recuperar la tabla de control de energía desde la variable global
-  ctrlEnergia = json.decode(fibaro:getGlobalValue(varName))
+  tablaEstado = json.decode(fibaro:getGlobalValue(varName))
   -- asignar el mensaje del estado
-  ctrlEnergia['estado'].mensaje = mensaje
+  tablaEstado.mensaje = mensaje
   -- guardar la tabla de control de energía en la variable global
-  fibaro:setGlobal(varName, json.encode(ctrlEnergia))
-end
-
---[[----------------------------------------------------------------------------
-isSetVar(varName)
-	comprueba si exite la variableGlobal y si la tabla que contiene tiene definido
-  un campo determinado devuelve su valor
---]]
-function isSetVar(varName, campo)
-  -- comprobar si esta vacia
-  local tabla, timestamp
-  tabla, timestamp = fibaro:getGlobal(varName)
-  -- si no hay variableGlobal false
-  if (not tabla) or (timestamp == 0) then return false end
-  -- intentar recuperar la tabla desde la variableGlobal
-  tabla = json.decode(tabla)
-  -- si la variable aún no ha actualizado el campo
-  if (not tabla) or (not tabla[campo]) or
-   (tabla[campo] == 0) or (tabla[campo] == '')  then
-    return false
-  end
-  -- retornar el valor del campo
-  return tabla[campo]
+  fibaro:setGlobal(varName, json.encode(tablaEstado))
 end
 
 --[[----- INICIAR ------------------------------------------------------------]]
@@ -224,6 +195,12 @@ if (preciokwh > (precioMedioDia * (1 + porcentajeAjusteRecomendacion/100))) then
   textoRecomendacion = 'Esperar'
 end
 
+_log(DEBUG, 'Precio medio día: '..precioMedioDia ..' €/kwh')
+-- refrescar icono recomendacion
+fibaro:call(_selfId, 'setProperty', "currentIcon", iconoRecomendado)
+-- refrescar el log
+setEstado(cceEstado, 'Recomendación de consumo '..textoRecomendacion)
+
 -- recuperar la tabla de estado
 local tablaEstado = json.decode(fibaro:getGlobalValue(cceEstado))
 -- guardar recomendación y precio
@@ -231,17 +208,10 @@ tablaEstado['recomendacion'] = iconoRecomendado
 tablaEstado['preciokwh'] = preciokwh
 -- almacenar en la variable global
 fibaro:setGlobal(cceEstado, json.encode(tablaEstado))
--- hasta que no hay precio, la escena no anota el consumo y si se trata del
--- consumo origen no se puede seguir, es por esto que después de anotar  precio,
--- hay que esperar hasta que se anote el consumo origen
- while not isSetVar(cceEstado, consumoOrigen) do
-   _log(INFO, 'Esperando primera lectura..')
-   fibaro:sleep(1000)
- end
 
-_log(DEBUG, 'Precio medio día: '..precioMedioDia ..' €/kwh')
--- refrescar icono recomendacion
-fibaro:call(_selfId, 'setProperty', "currentIcon", iconoRecomendado)
+-- esperar para que se anoten los consumos desde la escena
+_log(DEBUG, 'Esperando registro de consumos')
+fibaro:sleep(2000)
 
 -- obtener consumo origen
 local consumoOrigen = tablaEstado['consumoOrigen'].kWh
@@ -249,54 +219,50 @@ local consumoOrigen = tablaEstado['consumoOrigen'].kWh
 fibaro:call(_selfId, 'setProperty',
  'ui.ActualOrigen.value',tostring(consumoOrigen)..' kWh')
 
--- comienza el calculo de consumos
+-- comienza el calculo de consumos e importes
 _log(DEBUG, 'comienza el calculo de consumos')
-local consumoActual
+
 -- calcular consumo acumulado de la ultima hora
+local consumoUltimaHora, importeUltimaHora
 -- restar los segundos de una hora o desde la horaActual:00 ?
-consumoActual = getConsumo(os.time() - 3600, os.time())
-_log(DEBUG, 'Consumo última hora: '..consumoActual)
+consumoUltimaHora, importeUltimaHora = getConsumo(os.time() - 3600, os.time())
+_log(DEBUG, 'Consumo última hora: '..consumoUltimaHora)
 -- refrescar etiqueta consumo ultima hora
 fibaro:call(_selfId, "setProperty", "ui.UltimaHora.value",
- redondea(consumoActual, 2)..' kWh')
- --..redondea(consumoActual*preciokwh, 2).." €")
+ redondea(consumoUltimaHora, 2)..'kWh / '..
+ redondea(importeUltimaHora, 2)..'€')
 
 -- calcular consumo acumulado del dia
 -- restar los segundos de un dia 24h o calcular desde las 00:00h?
 --consumoActual = getConsumo(os.time() - 3600 * 24, os.time())
-local stampIni
+local stampIni, consumoAcumuladoDia, importeAcumuladoDia
 stampIni = os.time({year = tonumber(os.date('%Y')),
  month = tonumber(os.date('%m')), day = tonumber(os.date('%d')),
  hour = 0, min = 0, sec = 0})
  _log(DEBUG, 'El día comenzó: '..os.date('%d-%m-%Y/%H:%M:%S', stampIni))
-consumoActual = getConsumo(stampIni, os.time())
-_log(DEBUG, 'Consumo último día: '..consumoActual)
+consumoAcumuladoDia, importeAcumuladoDia = getConsumo(stampIni, os.time())
+_log(DEBUG, 'Consumo último día: '..consumoAcumuladoDia)
 -- refrescar etiqueta consumo del ultimo dia
 fibaro:call(_selfId, "setProperty", "ui.Ultimas24H.value",
- redondea(consumoActual, 2).. ' kWh')
+ redondea(consumoAcumuladoDia, 2).. ' kWh')
 --redondea(consumoActual*preciokwh, 2).." €")
 
 -- calcular consumo del ultimo ciclo
-consumoActual = getConsumo()
-_log(DEBUG, 'Consumo último ciclo: '..consumoActual)
--- refrescar etiqueta consumo ultimo mes
---fibaro:call(_selfId, "setProperty", "ui.UltimoMes.value",
--- redondea(consumoActual, 2)..' kWh')
- --redondea(consumoActual*preciokwh, 2).." €")
+local consumoUltimoCiclo, euroterminoconsumo
+consumoUltimoCiclo, euroterminoconsumo = getConsumo()
+_log(DEBUG, 'Consumo último ciclo: '..consumoUltimoCiclo)
 
  -- obtener potencia media
- local potenciaMedia; potenciaMedia = estadoTab['energia']
+ local potenciaMedia = tablaEstado['energia']
  _log(DEBUG, 'Potencia media: '.. potenciaMedia..' W')
  -- refrescar etiqueta potencia media
  fibaro:call(_selfId, "setProperty", "ui.PotenciaMedia.value",
-  redondea(potenciaMedia, 2)..'W / '..redondea(consumoActual, 2)..'kWh')
--- refrescar el log
-setEstado(globalVarName, 'Recomendación de consumo '..textoRecomendacion)
+  redondea(potenciaMedia, 2)..'W / '..redondea(consumoUltimoCiclo, 2)..'kWh')
 
 --[[------- ACTUALIZAR FACTURA VIRTUAL ---------------------------------------]]
 local timeOrigen, timeAhora, diasDesdeInicio
 -- obtener timestamp del origen de ciclo
-timeOrigen = estadoTab['consumoOrigen'].timeStamp
+timeOrigen = tablaEstado['consumoOrigen'].timeStamp
 -- obtener timestamp actual
 timeAhora = os.time()
 -- calcular dias transcurridos desde inicio de ciclo
@@ -312,8 +278,7 @@ local euroterminofijopotenciames = potenciacontratadakw * preciokwhterminofijo
 fibaro:call(_selfId, "setProperty", "ui.TerminoFijo.value",
  redondea(euroterminofijopotenciames, 2) .. " €")
 
- -- calcular consumo del ultimo ciclo y precio
-local euroterminoconsumo = getConsumo() * preciokwh
+ -- calcular consumo del ultimo ciclo e importe
 _log(DEBUG, 'Precio termino consumo: '..euroterminoconsumo)
 -- refrescar etiqueta precio termino consumo
 fibaro:call(_selfId, "setProperty", "ui.TerminoConsumo.value",
