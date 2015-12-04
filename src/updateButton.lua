@@ -252,16 +252,12 @@ fibaro:call(_selfId, "setProperty", "ui.Ultimas24H.value",
 local consumoUltimoCiclo, euroterminoconsumo
 consumoUltimoCiclo, euroterminoconsumo = getConsumo()
 _log(DEBUG, 'Consumo último ciclo: '..consumoUltimoCiclo)
--- refrescar etiqueta consumo del ultimo ciclo
-fibaro:call(_selfId, "setProperty", "ui.UltimoCiclo.value",
- redondea(consumoUltimoCiclo, 2).. ' kWh/'..
- redondea(euroterminoconsumo, 2)..'€')
-
  -- obtener potencia media
  local potenciaMedia = tablaEstado['energia']
  _log(DEBUG, 'Potencia media: '.. potenciaMedia..' W')
  -- refrescar etiqueta potencia media
  fibaro:call(_selfId, "setProperty", "ui.PotenciaMedia.value",
+  redondea(consumoUltimoCiclo, 2)..'kWh  '..
   redondea(potenciaMedia, 2)..'W')
 
 --[[------- ACTUALIZAR FACTURA VIRTUAL ---------------------------------------]]
