@@ -229,7 +229,7 @@ consumoUltimaHora, importeUltimaHora = getConsumo(os.time() - 3600, os.time())
 _log(DEBUG, 'Consumo última hora: '..consumoUltimaHora)
 -- refrescar etiqueta consumo ultima hora
 fibaro:call(_selfId, "setProperty", "ui.UltimaHora.value",
- redondea(consumoUltimaHora, 2)..'kWh / '..
+ redondea(consumoUltimaHora, 2)..'kWh/'..
  redondea(importeUltimaHora, 2)..'€')
 
 -- calcular consumo acumulado del dia
@@ -244,20 +244,25 @@ consumoAcumuladoDia, importeAcumuladoDia = getConsumo(stampIni, os.time())
 _log(DEBUG, 'Consumo último día: '..consumoAcumuladoDia)
 -- refrescar etiqueta consumo del ultimo dia
 fibaro:call(_selfId, "setProperty", "ui.Ultimas24H.value",
- redondea(consumoAcumuladoDia, 2).. ' kWh')
+ redondea(consumoAcumuladoDia, 2).. ' kWh/'..
+ redondea(importeAcumuladoDia, 2)..'€')
 --redondea(consumoActual*preciokwh, 2).." €")
 
 -- calcular consumo del ultimo ciclo
 local consumoUltimoCiclo, euroterminoconsumo
 consumoUltimoCiclo, euroterminoconsumo = getConsumo()
 _log(DEBUG, 'Consumo último ciclo: '..consumoUltimoCiclo)
+-- refrescar etiqueta consumo del ultimo ciclo
+fibaro:call(_selfId, "setProperty", "ui.UltimoCiclo.value",
+ redondea(consumoUltimoCiclo, 2).. ' kWh/'..
+ redondea(euroterminoconsumo, 2)..'€')
 
  -- obtener potencia media
  local potenciaMedia = tablaEstado['energia']
  _log(DEBUG, 'Potencia media: '.. potenciaMedia..' W')
  -- refrescar etiqueta potencia media
  fibaro:call(_selfId, "setProperty", "ui.PotenciaMedia.value",
-  redondea(potenciaMedia, 2)..'W / '..redondea(consumoUltimoCiclo, 2)..'kWh')
+  redondea(potenciaMedia, 2)..'W')
 
 --[[------- ACTUALIZAR FACTURA VIRTUAL ---------------------------------------]]
 local timeOrigen, timeAhora, diasDesdeInicio
@@ -276,13 +281,13 @@ local euroterminofijopotenciames = potenciacontratadakw * preciokwhterminofijo
  _log(DEBUG, 'Precio termino fijo: '..euroterminofijopotenciames)
  -- refrescar etiqueta precio termino fijo
 fibaro:call(_selfId, "setProperty", "ui.TerminoFijo.value",
- redondea(euroterminofijopotenciames, 2) .. " €")
+ redondea(euroterminofijopotenciames, 3) .. " €")
 
  -- calcular consumo del ultimo ciclo e importe
 _log(DEBUG, 'Precio termino consumo: '..euroterminoconsumo)
 -- refrescar etiqueta precio termino consumo
 fibaro:call(_selfId, "setProperty", "ui.TerminoConsumo.value",
- redondea(euroterminoconsumo, 2) .. " €")
+ redondea(euroterminoconsumo, 3) .. " €")
 
 -- calcular precio impuesto electricidad
 local impuestoelectricidad = (euroterminofijopotenciames+euroterminoconsumo) *
@@ -290,21 +295,21 @@ local impuestoelectricidad = (euroterminofijopotenciames+euroterminoconsumo) *
  _log(DEBUG, 'Precio impuesto electricidad: '..impuestoelectricidad)
  -- refrescar etiqueta precio impuesto electricidad
 fibaro:call(_selfId, "setProperty", "ui.ImpuestoElectricidad.value",
- redondea(impuestoelectricidad, 2) .. " €")
+ redondea(impuestoelectricidad, 3) .. " €")
 
 -- calcular precio alquiler equipo
 local euroalquilerequipos = precioalquilerequipodia * diasDesdeInicio
 _log(DEBUG, 'Precio alquiler equipo: '..euroalquilerequipos)
 -- refrescar etiqueta precio alquiler equipo
 fibaro:call(_selfId, "setProperty", "ui.AlquilerEquipos.value",
- redondea(euroalquilerequipos, 2) .. " €")
+ redondea(euroalquilerequipos, 3) .. " €")
 
 -- calcular el IVA
 local IVA = (euroterminofijopotenciames + euroterminoconsumo +
  impuestoelectricidad + euroalquilerequipos) * porcentajeIVA/100
  _log(DEBUG, 'IVA: '..IVA)
  -- refrescar etiqueta IVA
-fibaro:call(_selfId, "setProperty", "ui.IVA.value", redondea(IVA,2) .. " €")
+fibaro:call(_selfId, "setProperty", "ui.IVA.value", redondea(IVA, 3) .. " €")
 
 -- calcular TOTAL
 local Total = euroterminofijopotenciames+euroterminoconsumo +
@@ -312,7 +317,7 @@ local Total = euroterminofijopotenciames+euroterminoconsumo +
  _log(DEBUG, 'Total factura: '..Total)
  -- refrescar etiqueta total factura
 fibaro:call(_selfId, "setProperty", "ui.Total.value",
-redondea(Total,2) .. " €")
+redondea(Total, 3) .. " €")
 --[[----- FIN DE LA EJECUCION ------------------------------------------------]]
 
 --[[----- INFORME DE RESULTADOS ----------------------------------------------]]
