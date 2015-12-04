@@ -35,11 +35,13 @@ _log(INFO, release['name']..
 
 --[[--------BUCLE DE CONTROL -------------------------------------------------]]
 while true do
-  fibaro:sleep(1000)
+  local mensaje = ''
+  fibaro:log(mensaje)
   -- obtener mesaje de estado
   local tablaEstado = json.decode(fibaro:getGlobalValue(cceEstado))
   mensaje = tablaEstado.mensaje..' - '..tablaEstado.preciokwh..'€/kWh'
   -- referscar log
   fibaro:log(mensaje)
+  fibaro:sleep(1000)
 end
 --[[--------------------------------------------------------------------------]]
