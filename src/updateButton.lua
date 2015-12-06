@@ -209,111 +209,104 @@ tablaEstado['preciokwh'] = preciokwh
 -- almacenar en la variable global
 fibaro:setGlobal(cceEstado, json.encode(tablaEstado))
 
--- esperar para que se anoten los consumos desde la escena
-_log(DEBUG, 'Esperando registro de consumos')
-fibaro:sleep(2000)
-
 -- obtener consumo origen
 local consumoOrigen = tablaEstado['consumoOrigen'].kWh
 -- refrescar etiqueta de consumo origen
 fibaro:call(_selfId, 'setProperty',
  'ui.ActualOrigen.value',tostring(consumoOrigen)..' kWh')
 
--- comienza el calculo de consumos e importes
-_log(DEBUG, 'comienza el calculo de consumos')
+-- esperar para que se anoten los consumos desde la escena
+_log(DEBUG, 'Esperando registro de consumos')
+-- si se han actualizado los consumos, actualizar las etiquetas
+fibaro:sleep(5000)
+-- obtener los consumos de la tabla de estado
+local tablaConsumoActual = fibaro:getGlobal(cceEstado)
+tablaConsumoActual = json.decode(tablaConsumoActual)
+tablaConsumoActual = tablaConsumoActual['consumosAcumulados']
+if tablaConsumoActual then
+  _log(DEBUG, 'Consumo última hora: '..tablaConsumoActual['kWHora'])
+  -- refrescar etiqueta consumo ultima hora
+  fibaro:call(_selfId, "setProperty", "ui.UltimaHora.value",
+   redondea(tablaConsumoActual['kWHora'], 2)..'kWh/'..
+   redondea(tablaConsumoActual['eurHora'], 2)..'€')
 
--- calcular consumo acumulado de la ultima hora
-local consumoUltimaHora, importeUltimaHora
--- restar los segundos de una hora o desde la horaActual:00 ?
-consumoUltimaHora, importeUltimaHora = getConsumo(os.time() - 3600, os.time())
-_log(DEBUG, 'Consumo última hora: '..consumoUltimaHora)
--- refrescar etiqueta consumo ultima hora
-fibaro:call(_selfId, "setProperty", "ui.UltimaHora.value",
- redondea(consumoUltimaHora, 2)..'kWh/'..
- redondea(importeUltimaHora, 2)..'€')
+  _log(DEBUG, 'El día comenzó: '..os.date('%d-%m-%Y/%H:%M:%S', stampIni))
+  _log(DEBUG, 'Consumo último día: '..tablaConsumoActual['kWDia'])
+  -- refrescar etiqueta consumo del ultimo dia
+  fibaro:call(_selfId, "setProperty", "ui.Ultimas24H.value",
+   redondea(tablaConsumoActual['kWDia'], 2).. ' kWh/'..
+   redondea(tablaConsumoActual['eurDia'], 2)..'€')
+  --redondea(consumoActual*preciokwh, 2).." €")
 
--- calcular consumo acumulado del dia
--- restar los segundos de un dia 24h o calcular desde las 00:00h?
---consumoActual = getConsumo(os.time() - 3600 * 24, os.time())
-local stampIni, consumoAcumuladoDia, importeAcumuladoDia
-stampIni = os.time({year = tonumber(os.date('%Y')),
- month = tonumber(os.date('%m')), day = tonumber(os.date('%d')),
- hour = 0, min = 0, sec = 0})
- _log(DEBUG, 'El día comenzó: '..os.date('%d-%m-%Y/%H:%M:%S', stampIni))
-consumoAcumuladoDia, importeAcumuladoDia = getConsumo(stampIni, os.time())
-_log(DEBUG, 'Consumo último día: '..consumoAcumuladoDia)
--- refrescar etiqueta consumo del ultimo dia
-fibaro:call(_selfId, "setProperty", "ui.Ultimas24H.value",
- redondea(consumoAcumuladoDia, 2).. ' kWh/'..
- redondea(importeAcumuladoDia, 2)..'€')
---redondea(consumoActual*preciokwh, 2).." €")
+  -- calcular consumo del ultimo ciclo
+  local euroterminoconsumo
+  euroterminoconsumo = tablaConsumoActual['eurCiclo']
+  _log(DEBUG, 'Consumo último ciclo: '..tablaConsumoActual['kWCiclo'])
+  -- obtener potencia media
+  local potenciaMedia = tablaEstado['energia']
+  _log(DEBUG, 'Potencia media: '.. potenciaMedia..' W')
+  -- refrescar etiqueta potencia media
+  fibaro:call(_selfId, "setProperty", "ui.PotenciaMedia.value",
+   redondea(potenciaMedia, 2)..'W / '..
+   redondea(tablaConsumoActual['kWCiclo'], 2)..'kWh')
 
--- calcular consumo del ultimo ciclo
-local consumoUltimoCiclo, euroterminoconsumo
-consumoUltimoCiclo, euroterminoconsumo = getConsumo()
-_log(DEBUG, 'Consumo último ciclo: '..consumoUltimoCiclo)
- -- obtener potencia media
- local potenciaMedia = tablaEstado['energia']
- _log(DEBUG, 'Potencia media: '.. potenciaMedia..' W')
- -- refrescar etiqueta potencia media
- fibaro:call(_selfId, "setProperty", "ui.PotenciaMedia.value",
-  redondea(consumoUltimoCiclo, 2)..'kWh  '..
-  redondea(potenciaMedia, 2)..'W')
+  --[[------- ACTUALIZAR FACTURA VIRTUAL -------------------------------------]]
+  local timeOrigen, timeAhora, diasDesdeInicio
+  -- obtener timestamp del origen de ciclo
+  timeOrigen = tablaEstado['consumoOrigen'].timeStamp
+  -- obtener timestamp actual
+  timeAhora = os.time()
+  -- calcular dias transcurridos desde inicio de ciclo
+  diasDesdeInicio = math.floor((timeAhora - timeOrigen) / (24*60*60)) + 1
+  _log(DEBUG, 'Dias desde inicio de ciclo: '..diasDesdeInicio)
+  -- FIN proceso
 
---[[------- ACTUALIZAR FACTURA VIRTUAL ---------------------------------------]]
-local timeOrigen, timeAhora, diasDesdeInicio
--- obtener timestamp del origen de ciclo
-timeOrigen = tablaEstado['consumoOrigen'].timeStamp
--- obtener timestamp actual
-timeAhora = os.time()
--- calcular dias transcurridos desde inicio de ciclo
-diasDesdeInicio = math.floor((timeAhora - timeOrigen) / (24*60*60)) + 1
-_log(DEBUG, 'Dias desde inicio de ciclo: '..diasDesdeInicio)
--- FIN proceso
+  -- calcular precio termino fijo
+  local euroterminofijopotenciames = potenciacontratadakw * preciokwhterminofijo
+   * diasDesdeInicio
+   _log(DEBUG, 'Precio termino fijo: '..euroterminofijopotenciames)
+   -- refrescar etiqueta precio termino fijo
+  fibaro:call(_selfId, "setProperty", "ui.TerminoFijo.value",
+   redondea(euroterminofijopotenciames, 3) .. " €")
 
--- calcular precio termino fijo
-local euroterminofijopotenciames = potenciacontratadakw * preciokwhterminofijo
- * diasDesdeInicio
- _log(DEBUG, 'Precio termino fijo: '..euroterminofijopotenciames)
- -- refrescar etiqueta precio termino fijo
-fibaro:call(_selfId, "setProperty", "ui.TerminoFijo.value",
- redondea(euroterminofijopotenciames, 3) .. " €")
+   -- calcular consumo del ultimo ciclo e importe
+  _log(DEBUG, 'Precio termino consumo: '..euroterminoconsumo)
+  -- refrescar etiqueta precio termino consumo
+  fibaro:call(_selfId, "setProperty", "ui.TerminoConsumo.value",
+   redondea(euroterminoconsumo, 3) .. " €")
 
- -- calcular consumo del ultimo ciclo e importe
-_log(DEBUG, 'Precio termino consumo: '..euroterminoconsumo)
--- refrescar etiqueta precio termino consumo
-fibaro:call(_selfId, "setProperty", "ui.TerminoConsumo.value",
- redondea(euroterminoconsumo, 3) .. " €")
+  -- calcular precio impuesto electricidad
+  local impuestoelectricidad = (euroterminofijopotenciames+euroterminoconsumo) *
+   porcentajeimpuestoelectricidad/100
+   _log(DEBUG, 'Precio impuesto electricidad: '..impuestoelectricidad)
+   -- refrescar etiqueta precio impuesto electricidad
+  fibaro:call(_selfId, "setProperty", "ui.ImpuestoElectricidad.value",
+   redondea(impuestoelectricidad, 3) .. " €")
 
--- calcular precio impuesto electricidad
-local impuestoelectricidad = (euroterminofijopotenciames+euroterminoconsumo) *
- porcentajeimpuestoelectricidad/100
- _log(DEBUG, 'Precio impuesto electricidad: '..impuestoelectricidad)
- -- refrescar etiqueta precio impuesto electricidad
-fibaro:call(_selfId, "setProperty", "ui.ImpuestoElectricidad.value",
- redondea(impuestoelectricidad, 3) .. " €")
+  -- calcular precio alquiler equipo
+  local euroalquilerequipos = precioalquilerequipodia * diasDesdeInicio
+  _log(DEBUG, 'Precio alquiler equipo: '..euroalquilerequipos)
+  -- refrescar etiqueta precio alquiler equipo
+  fibaro:call(_selfId, "setProperty", "ui.AlquilerEquipos.value",
+   redondea(euroalquilerequipos, 3) .. " €")
 
--- calcular precio alquiler equipo
-local euroalquilerequipos = precioalquilerequipodia * diasDesdeInicio
-_log(DEBUG, 'Precio alquiler equipo: '..euroalquilerequipos)
--- refrescar etiqueta precio alquiler equipo
-fibaro:call(_selfId, "setProperty", "ui.AlquilerEquipos.value",
- redondea(euroalquilerequipos, 3) .. " €")
+  -- calcular el IVA
+  local IVA = (euroterminofijopotenciames + euroterminoconsumo +
+   impuestoelectricidad + euroalquilerequipos) * porcentajeIVA/100
+   _log(DEBUG, 'IVA: '..IVA)
+   -- refrescar etiqueta IVA
+  fibaro:call(_selfId, "setProperty", "ui.IVA.value", redondea(IVA, 3) .. " €")
 
--- calcular el IVA
-local IVA = (euroterminofijopotenciames + euroterminoconsumo +
- impuestoelectricidad + euroalquilerequipos) * porcentajeIVA/100
- _log(DEBUG, 'IVA: '..IVA)
- -- refrescar etiqueta IVA
-fibaro:call(_selfId, "setProperty", "ui.IVA.value", redondea(IVA, 3) .. " €")
-
--- calcular TOTAL
-local Total = euroterminofijopotenciames+euroterminoconsumo +
- impuestoelectricidad + euroalquilerequipos+IVA
- _log(DEBUG, 'Total factura: '..Total)
- -- refrescar etiqueta total factura
-fibaro:call(_selfId, "setProperty", "ui.Total.value",
-redondea(Total, 3) .. " €")
+  -- calcular TOTAL
+  local Total = euroterminofijopotenciames+euroterminoconsumo +
+   impuestoelectricidad + euroalquilerequipos+IVA
+   _log(DEBUG, 'Total factura: '..Total)
+   -- refrescar etiqueta total factura
+  fibaro:call(_selfId, "setProperty", "ui.Total.value",
+  redondea(Total, 3) .. " €")
+else
+  _log(INFO, 'No hay consumos anotados')
+end
 --[[----- FIN DE LA EJECUCION ------------------------------------------------]]
 
 --[[----- INFORME DE RESULTADOS ----------------------------------------------]]
