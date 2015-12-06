@@ -102,42 +102,6 @@ function normalizaPVPCTab(precioTab)
 end
 
 --[[----------------------------------------------------------------------------
-getConsumo(stampIni, stampFin)
-	devuelve el consumo desde el momento inicado hasta la actualidad o stampFin
---]]
-function getConsumo(stampIni, stampFin)
-  local tablaEstado, tablaConsumo, consumo, importeAcumulado
-  -- recuperar la tabla de consumos
-  tablaConsumo = json.decode(fibaro:getGlobalValue(cceConsumo))
-  -- recuperar la tabla de estado
-  tablaEstado = json.decode(fibaro:getGlobalValue(cceEstado))
-  consumo = 0; importe = 0
-  -- si no se indica el principio del ambito
-  if not stampIni then
-    -- se devuelve el total y el importe
-    for key, value in pairs(tablaConsumo) do
-      if value['kWh'] then consumo = consumo + value['kWh'] end
-      if value['EUR'] then importe = importe + value['EUR'] end
-    end
-    return consumo, importe
-  elseif stampIni == 0 then -- si se indica 0 como inicio del ambito
-    -- devolver el consumo origen
-    return  tablaEstado['consumoOrigen'].kWh
-  end
-  -- si no se indica el final se toma el momento actual
-  if not stampFin then stampFin = os.time() end
-  -- se devuelve el total del ambito indicado (stampIni, stampFin) e importe
-  for key, value in pairs(tablaConsumo) do
-    local stampActual = value.timeStamp
-    if stampActual > stampIni and stampActual <= stampFin then
-      consumo = consumo + value.kWh
-      importe = importe + value.EUR
-    end
-  end
-  return consumo, importe
-end
-
---[[----------------------------------------------------------------------------
 setEstado(varName, mensaje))
 	configura el estado del dispositivo virtual
 --]]
