@@ -21,8 +21,8 @@ local iDIconoRecomendadoNO = 1055                 -- icono NO recomendar consumo
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
 
 --[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
-local release = {name='ControlConsumoElect.updateButton', ver=0, mayor=0,
- minor=4}
+local release = {name='ControlConsumoElect.updateButton', ver=2, mayor=1,
+ minor=1}
 local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
 cceEstado = 'cceEstado'     -- nombre variable global para almacenar el estado
 cceConsumo = 'cceConsumo'   -- nombre variable global para almacenar consumos

@@ -10,8 +10,8 @@
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
 
 --[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
-local release = {name='ControlConsumoElect.downDiaButton', ver=2, mayor=0,
- minor=0}
+local release = {name='ControlConsumoElect.downDiaButton', ver=2, mayor=1,
+ minor=1}
 local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
 local globalVarName = 'consumoV2'
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log

@@ -10,7 +10,7 @@
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
 
 --[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
-local release = {name='ControlConsumoElect.mainLoop', ver=2, mayor=1, minor=0}
+local release = {name='ControlConsumoElect.mainLoop', ver=2, mayor=1, minor=1}
 cceEstado = 'cceEstado'     -- nombre variable global para almacenar el estado
 cceConsumo = 'cceConsumo'   -- nombre variable global para almacenar consumos
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log

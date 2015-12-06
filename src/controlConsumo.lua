@@ -16,7 +16,7 @@
 
 --[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
 local release = {name='ControlConsumoElect.controlConsumo', ver=2, mayor=1,
- minor=0}
+ minor=1}
 cceEstado = 'cceEstado'     -- nombre variable global para almacenar el estado
 cceConsumo = 'cceConsumo'   -- nombre variable global para almacenar consumos
 compactaHora = 48           -- 48h

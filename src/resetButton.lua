@@ -12,8 +12,8 @@ propertyName = 'value'		-- propiedad del dispositivo para recuperar la energia
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
 
 --[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
-local release = {name='ControlConsumoElect.resetButton', ver=0, mayor=0,
- minor=4}
+local release = {name='ControlConsumoElect.resetButton', ver=2, mayor=1,
+ minor=1}
 local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
 cceEstado = 'cceEstado'     -- nombre variable global para almacenar el estado
 cceConsumo = 'cceConsumo'   -- nombre variable global para almacenar consumo
@@ -84,7 +84,7 @@ function resetConsumo()
 
   -- almacenar el consumoOrigen
   local timeStamp = tonumber(fibaro:getModificationTime(energyDev,propertyName))
-  local consumo = tonumber(fibaro:getValue(energyDev, propertyName))
+  local consumo = tonumber(fibaro:getValue(deviceID, propertyName))
   tablaEstado['consumoOrigen'].kWh = consumo
   tablaEstado['consumoOrigen'].timeStamp = tonumber(timeStamp)
 
