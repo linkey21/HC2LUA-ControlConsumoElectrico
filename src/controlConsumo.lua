@@ -252,6 +252,9 @@ VDId = isSetVar(cceEstado, 'VDId')
 -- si hay otra escena en ejecución esperar a que termine
 while fibaro:countScenes() > 1 do
   _log(DEBUG, 'Esperando por otra anotación')
+  if fibaro:countScenes() > 1 then
+    _log(INFO, 'Escenas en ejecución '..fibaro:countScenes())
+  end
 end
 
 --[[ CADA CICLO DE FACTUARCION -----------------------------------------------]]
