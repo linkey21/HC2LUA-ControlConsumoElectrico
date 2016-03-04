@@ -258,6 +258,7 @@ VDId = isSetVar(cceEstado, 'VDId')
   end
 --end
 
+
 --[[ CADA CICLO DE FACTUARCION -----------------------------------------------]]
 local fechaFinCiclo
 fechaFinCiclo = fibaro:get(VDId, 'ui.diaInicioCiclo.value')
