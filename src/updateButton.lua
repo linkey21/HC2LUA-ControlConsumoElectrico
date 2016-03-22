@@ -22,7 +22,7 @@ local iDIconoRecomendadoNO = 1055                 -- icono NO recomendar consumo
 
 --[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
 local release = {name='ControlConsumoElect.updateButton', ver=2, mayor=1,
- minor=1}
+ minor=3}
 local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
 cceEstado = 'cceEstado'     -- nombre variable global para almacenar el estado
 cceConsumo = 'cceConsumo'   -- nombre variable global para almacenar consumos
@@ -56,14 +56,13 @@ getPVPC(tipo)
 	devuelve el valor del pecio valuntario para pequeño consumidor de la hora o
 	del dia.
 	tipo = 'dia'/'hora'
---]]
 function getPVPC(tipo)
-  -- solo se puede recibir como parametro 'hora' o 'dia'
+  -- solo se puede recibir como parametro 'hora' o 'dia' --
   if (tipo ~='dia' and tipo ~='hora') then
     return 1, 'solo se admite dia/hora'
   end
   local payload = '/'..tipo
-  -- si el tipo es hora, se toma la hora actual si no el dia de hoy
+  -- si el tipo es hora, se toma la hora actual si no el dia de hoy --
   if tipo == 'hora' then tipo = os.date('%H') else tipo = 'hoy' end
   local cnomys = Net.FHttp("pvpc.cnomys.es")
   response, status, errorCode = cnomys:GET(payload)
@@ -84,6 +83,37 @@ function getPVPC(tipo)
   end
   return 1, 'dia/hora no corresponde con el actual'
 end
+--]]
+
+function isVariable(varName)
+  -- comprobar si existe
+  local valor, timestamp = fibaro:getGlobal(varName)
+  if (valor and timestamp > 0) then return valor end
+  return false
+end
+
+--[[getPVPC(tipo)
+(string)  tipo:
+]]
+function getPVPC(tipo)
+  -- si el tipo es hora, se toma la hora actual si no el dia de hoy --
+  local PVPCs = isVariable('PVPC')
+  PVPCs = json.decode(PVPCs)
+  local total, iteraciones = 0, 0
+  for key, value in pairs(PVPCs) do
+    --fibaro:debug(tipo..' '..os.date('%H'))
+    -- si coincide la hora devolver el precio
+    if tipo ~= 'dia' and value.hour == os.date('%H') then
+      return value.value / 1000
+    end
+    -- acumular para cálculo de media
+    total = total + value.value; iteraciones = iteraciones + 1
+  end
+  -- devolver precio medio del día
+  return (total / iteraciones) / 1000
+end
+
+
 
 --[[----------------------------------------------------------------------------
 normalizaPVPCTab(precioTab)
@@ -124,28 +154,29 @@ local preciokwh = preciokwhmercadolibre -- TODO se puede obtener de una web?.
 local precioMedioDia = 0
 if pvpc then
   -- obtener el precio para esta hora
-  status, preciokwh = getPVPC('hora')
+  --status, preciokwh = getPVPC('hora')
+  preciokwh = getPVPC('hora')
   -- si no se puede obtener precio
-  if status ~= 0 then
+  --if status ~= 0 then
     -- informar del error
-    _log(INFO, 'Error al obtener precio hora: '..preciokwh)
+    --_log(INFO, 'Error al obtener precio hora: '..preciokwh)
     --  y tomar precio anterior
-    preciokwh = tonumber(string.sub(fibaro:get(_selfId, 'ui.PrecioHora.value'),
-     1, 7))
-  else
+    --preciokwh = tonumber(string.sub(fibaro:get(_selfId, 'ui.PrecioHora.value'),1, 7))
+  --else
     preciokwh = tonumber(preciokwh)
-  end
+  --end
   -- obtener precio medio del día
-  status, precioMedioDia = getPVPC('dia')
+  --status, precioMedioDia = getPVPC('dia')
+  precioMedioDia = getPVPC('dia')
   -- si no se puede obtener precio medio dia
-  if status ~= 0 then
+  --if status ~= 0 then
     -- informar del error
-    _log(INFO, 'Error al obtener precio medio día: '..precioMedioDia)
+    --_log(INFO, 'Error al obtener precio medio día: '..precioMedioDia)
     --  y tomar precio hora no recomendable
-    precioMedioDia = preciokwh * (1 + porcentajeAjusteRecomendacion/100)
-  else
+    --precioMedioDia = preciokwh * (1 + porcentajeAjusteRecomendacion/100)
+  --else
     precioMedioDia = tonumber(precioMedioDia)
-  end
+  --end
 end
 -- refrescar etiqueta de precio hora
 fibaro:call(_selfId, "setProperty", "ui.PrecioHora.value",preciokwh..' €/kWh')
