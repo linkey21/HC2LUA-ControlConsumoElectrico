@@ -10,11 +10,9 @@
 --[[----- NO CAMBIAR EL CODIGO A PARTIR DE AQUI ------------------------------]]
 
 --[[----- CONFIGURACION AVANZADA ---------------------------------------------]]
-local release = {name='ControlConsumoElect.mainLoop', ver=0, mayor=0, minor=4}
-local _selfId = fibaro:getSelfId()  -- ID de este dispositivo virtual
-local diaCambioCiclo = fibaro:get(_selfId, 'ui.diaInicioCiclo.value')
-diaCambioCiclo = tonumber(string.sub(diaCambioCiclo, 1, 2))
-globalVarName = 'controlConsumo'    -- nombre de variable global almacen consumo
+local release = {name='ControlConsumoElect.mainLoop', ver=2, mayor=1, minor=0}
+cceEstado = 'cceEstado'     -- nombre variable global para almacenar el estado
+cceConsumo = 'cceConsumo'   -- nombre variable global para almacenar consumos
 OFF=1;INFO=2;DEBUG=3                -- referencia para el log
 nivelLog = DEBUG                    -- nivel de log
 --[[----- FIN CONFIGURACION AVANZADA -----------------------------------------]]
@@ -31,122 +29,24 @@ function _log(level, log)
   return
 end
 
---[[----------------------------------------------------------------------------
-setEstado()
-	configura el estado del dispositivo virtual
---]]
-function setEstado(estado, mensaje)
-  if estado then
-    mensaje = 'OK - '..mensaje
-  else
-    mensaje = 'STOP - '..mensaje
-  end
-  -- referscar etiqueta de estado
-  fibaro:call(_selfId, 'setProperty', 'ui.lbStatus.value', mensaje)
-  return estado
-end
-
---[[----------------------------------------------------------------------------
-getOrigen()
-	devuelve fecha origen en formato mmddhh
---]]
-function getOrigen()
-  local consumoTab = json.decode(fibaro:getGlobalValue(globalVarName))
-  -- ordenar la tabla para compara tomar el primer valor
-  local u = {}
-  for k, v in pairs(consumoTab) do table.insert(u, { key = k, value = v }) end
-  table.sort(u, function (a1, a2) return a1.key < a2.key; end)
-  return u[1].key
-end
-
---[[----------------------------------------------------------------------------
-isVariable(varName)
-	comprueba si existe una variable global dada(varName)
---]]
-function isVariable(varName)
-  -- comprobar si existe
-  local valor, timestamp = fibaro:getGlobal(varName)
-  if (valor and  timestamp > 0) then return true end
-  return false
-end
-
---[[----------------------------------------------------------------------------
-isEmptyVar(varName)
-	comprueba si existe una variable global dada(varName)
---]]
-function isEmptyVar(varName)
-  -- comprobar si esta vacia
-  local valor, timestamp = fibaro:getGlobal(varName)
-  if (not valor or valor == '0') then return true end
-  return false
-end
-
-
 --[[----- COMIENZA LA EJECUCION ----------------------------------------------]]
 _log(INFO, release['name']..
 ' ver '..release['ver']..'.'..release['mayor']..'.'..release['minor'])
--- configurar el estado del dispositivo
-estadoDispositivo = setEstado(true, 'Iniciando...')
 
--- esperar si no existe la variable local para almacenar consumos
-while not isVariable(globalVarName) do
-  fibaro:sleep(1000)
-  -- refrescar la etiqueta status
-  setEstado(false, 'Definir variable global')
-end
--- cambiar el estado
-setEstado(true, 'Arrancando...')
--- si la variable esta vacia
-if isEmptyVar(globalVarName) then
-  -- invocar al boton reset de datos para iciar el ciclo
-  fibaro:call(_selfId, "pressButton", "5")
-  -- esperar hasta que se haya iniciado el ciclo
-  while isEmptyVar(globalVarName) do
-    setEstado(false, 'Configurando variable global')
-  end
-end
--- TODO activar escena
-
+local contador = 0
 --[[--------BUCLE DE CONTROL -------------------------------------------------]]
-_log(DEBUG, "Iniciando...")
-setEstado(true, '')
+local tablaEstado
 while true do
-  --[[-------- ACTUALIZAR CONSUMO Y FACTURA VIRTUAL --------------------------]]
-  -- invocar al boton de actualizacion de datos
-  fibaro:call(_selfId, "pressButton", "6")
-
-  --[[-CADA HORA --------------- ---------------------------------------------]]
-    --if (tonumber(os.date("%M"))==0 and tonumber(os.date("%S"))==1) then
-    --_log(DEBUG, 'actualización horaria')
-  --end
-  --[[- FIN CADA HORA --------------------------------------------------------]]
-
-  --[[-CADA CICLO DE FACTUARCION ---------------------------------------------]]
-  local mesOrigen = tonumber(string.sub(getOrigen(), 1, 2))
-  local mesActual = tonumber(os.date("%m"))
-  -- ajustar cambio de año
-  if mesOrigen == 12 then mesOrigen = 0 end
-  if (diaCambioCiclo == tonumber(os.date("%d"))) and
-   (mesActual == mesOrigen + 1) then
-    -- invocar al boton de reseteo de datos iniciar ciclo
-    setEstado(true, 'reiniciando ciclo de facturación')
-    fibaro:call(_selfId, "pressButton", "5")
-    _log(DEBUG, 'reinicio de ciclo de facturación '..getOrigen())
-  end
-  --[[-FIN CICLO DE FACTUARCION ----------------------------------------------]]
-
-  -- esperar hasta que la tabla de consumos sufra cambios para sincronizar el
-  -- dispositivo virtual con el fisico
-  local consumoStr = fibaro:getGlobalValue(globalVarName)
-  local newConsumoStr = consumoStr
-  _log(DEBUG, 'esperando...')
-  setEstado(true, 'Esperando lectura')
-  while consumoStr == newConsumoStr do
-    fibaro:sleep(1000)
-    newConsumoStr = fibaro:getGlobalValue(globalVarName)
-    -- durante la primera hora desde que se inicia el ciclo, la tabla no cambia
-  end
-  _log(DEBUG, 'actualizar')
-  setEstado(true, '')
+  local mensaje = ''
+  fibaro:log(mensaje)
+  -- obtener mesaje de estado
+  tablaEstado = json.decode(fibaro:getGlobalValue(cceEstado))
+  local mensaje = tablaEstado.mensaje..' - '..tablaEstado.preciokwh..'€/kWh'
+  -- referscar log
+  fibaro:log(mensaje)
+  -- parar 1 seg. para evitar problemas de rendimiento
+  fibaro:sleep(1000)
+  -- notificación de estado para watchdog
+  fibaro:debug('ControlConsumo OK')
 end
 --[[--------------------------------------------------------------------------]]

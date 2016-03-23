@@ -1,8 +1,9 @@
-{\rtf1\ansi\ansicpg1252\cocoartf1348\cocoasubrtf170
-{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fswiss\fcharset0 ArialMT;}
+{\rtf1\ansi\ansicpg1252\cocoartf1404\cocoasubrtf130
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fnil\fcharset0 Verdana;\f2\fswiss\fcharset0 ArialMT;
+}
 {\colortbl;\red255\green255\blue255;\red26\green26\blue26;}
-\paperw11900\paperh16840\margl1440\margr1440\vieww12800\viewh12140\viewkind0
-\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural
+\paperw11900\paperh16840\margl1440\margr1440\vieww13460\viewh14480\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
 
 \f0\b\fs28 \cf0 Control de consumo el\'e9ctrico
 \b0\fs24 \
@@ -11,55 +12,51 @@
 \fs24 \
 \
 
-\b\fs26 b-0.0.2\
+\b\fs26 v2.1-beta.1\
+Errores\
 
-\b0 Programaci\'f3n inicial desde los fuentes aportados por Antonio Maestre.\
+\b0 -Calculo err\'f3neo del termino consumo.\
+	se estaba utilizando el precio de la hora actual en el momento de calcular el importe del consumo acumulado, ahora se guardan los importes calculados en cada lectura junto con el consumo.\
 
-\fs24 \
-
-\b\fs26 b-0.0.2
-\b0\fs24 \
-
-\f1\i\fs26 Errores
-\i0 \
-almacena mal los incrementos\
-	solucionado , si la clave ya existe, acumular el valor\
-\
-\pard\pardeftab720
-\cf2 \expnd0\expndtw0\kerning0
-inicializar variable\
-	al testear el valor de pvpc para decidir si baja el valor de la red o bien le asigna el precio fijo del mercado libre, la variable no est\'e1 inicializada en ninguna parte\cf0 \kerning1\expnd0\expndtw0 .\
-\
-el sistema se para cuando falla el servicio \'91pvpc.cnomys.es\'92\
+\f1\fs22 \cf2 \expnd0\expndtw0\kerning0
 \
 
-\i Mejoras
-\i0 \
-a\'f1adir c\'e1lculo de potencia media.\
-\cf2 \expnd0\expndtw0\kerning0
-nuevo par\'e1metro para tarifa que tienes contratada, 20, 20DH \'f3 20DHS\
+\f0\fs26 \cf0 \kerning1\expnd0\expndtw0 Error \cf2 \expnd0\expndtw0\kerning0
+Expected value but found T_END at character 1\
+	\cf0 \kerning1\expnd0\expndtw0 al descodificar una cadena JSON obtenida desde la variable global en el VD, se detecta que el uso de json.decode() desde un VD falla con cadenas demasiado largas, no ocurriendo lo mismo si se usa en usa escena. \
 \
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+\cf0 -Desbordamiento de la variable global.\
+	al almacenar todas las lecturas del contador en una variable global, esta no es capaz de contener el total de registros en un ciclo de facturaci\'f3n.\
+	se ha dise\'f1ado un sistema de compactado de la tabla de consumos parametrizable en la escena mediante la variable compactaHora\
+\
+-Varios bugs menores \
+\pard\pardeftab720\partightenfactor0
 
-\b b.0.0.3
+\f2 \cf2 \expnd0\expndtw0\kerning0
+	durante la programaci\'f3n se detectan y solventan peque\'f1os problemas\
+
+\f0 \cf0 \kerning1\expnd0\expndtw0 \
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+
+\b \cf0 Mejoras
 \b0 \
-Mejoras\
-Usar el precio de la consulta anterior cuando falle el servicio \'91\cf0 \kerning1\expnd0\expndtw0 pvpc.cnomys.es\'92\cf2 \expnd0\expndtw0\kerning0
-\
-En las actualizaciones, limitar para que solo obtenga precio de PVPC si cambia de hora.\
-\
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural\partightenfactor0
+\cf0 -Cambiado l\'f3gica de almacenamiento\
+	se ha cambiado toda la l\'f3gica de almacenamiento a la escena y dise\'f1ado un sistema de comunicaci\'f3n entre esta y el VD utilizando una variable global adicional, 
+\f2 \cf2 \expnd0\expndtw0\kerning0
+para obtener unos valores m\'e1s exactos, por ejemplo la potencia media e importes.\
 
-\b b.0.0.4\
-
-\b0 Mejoras\
-pr\'f3ximo d\'eda de inicio de ciclo calculado a partir de reset\
-tener en cuenta a\'f1os bisiestos\
-botones para ajustar pr\'f3ximo d\'eda de inicio de ciclo \
-ajustar c\'e1lculo precio termino fijo, alquiler equipo y consumo mes.\
-control de existencia de variable global\
-etiqueta \'91Estado\'92 para informar del estado del servicio.\
+\f0 \cf0 \kerning1\expnd0\expndtw0 \
+-Desdoblamiento de variable global.\
+	se utilizan dos variable globales consumo y estado, consumo almacena las lecturas del contado y estado almacena datos de estado usados entre la escena y el VD. Esto evita que tenga que leerse una VG demasiado grande desde una VD que provocar\'eda error.\
 \
+-Automatizaci\'f3n creaci\'f3n variables globales\
+	se ha automatizado la creaci\'f3n de variables globales evitando la necesidad de intervenci\'f3n de usuario para instalar el sistema, ahora basta con importar el VG, crear la escena y pulsar el bot\'f3n reset.\
+\
+\
+\pard\pardeftab720\partightenfactor0
 
-\b TODO
-\b0 \
-crear autom\'e1ticamente variable global\
+\f2 \cf2 \expnd0\expndtw0\kerning0
+\
 }
