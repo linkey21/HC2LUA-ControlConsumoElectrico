@@ -1,16 +1,17 @@
 --[[
+%% autostart
 %% properties
-%% events
 %% globals
 --]]
 
---[[ escena
-	getPVPC.lua
-	por Manuel Pascual
+-- Scene   : getPVPC
+-- Author  : Manuel Pascual
+-- Version : 1.0
+-- Date    : Marzo 2016
 ------------------------------------------------------------------------------]]
 
 --[[----- CONFIGURACION DE USUARIO -------------------------------------------]]
-local token = 'd08fc417d428202aa2d5b2f3f2192ee9bd1113762e94eeca9ef3e8d36b3a5b65'
+local token = ''
 --[[----- FIN CONFIGURACION DE USUARIO ---------------------------------------]]
 
 function getPVPC()
